@@ -1,74 +1,71 @@
 // ============================================
-// GSAP Animations Module
+// Animations - GSAP used sparingly for wow moments
+// CSS handles everything else for performance
 // ============================================
 
-// Helper to load GSAP if not already present
-async function ensureGSAP() {
-    if (window.gsap) return window.gsap;
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js';
-        script.onload = () => resolve(window.gsap);
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
+let gsapLoaded = null;
+
+// Lazy-load GSAP only when needed
+export async function loadGSAP() {
+  if (gsapLoaded) return gsapLoaded;
+  gsapLoaded = import('https://esm.sh/gsap@3.12.5');
+  return gsapLoaded;
 }
 
-/**
- * Animate elements on scroll or load
- * @param {string|HTMLElement} target 
- * @param {object} vars 
- */
-export async function animateIn(target, vars = {}) {
-    const gsap = await ensureGSAP();
-    return gsap.from(target, {
-        opacity: 0,
-        y: 20,
-        duration: 0.8,
-        ease: 'power3.out',
-        ...vars
-    });
+// Check if user prefers reduced motion
+export const prefersReducedMotion = () =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ===== HERO ENTRANCE =====
+export async function animateHeroEntrance() {
+  if (prefersReducedMotion()) return;
+  const { gsap } = await loadGSAP();
+  gsap.from('[data-anim="hero"]', {
+    y: 30,
+    opacity: 0,
+    duration: 0.8,
+    stagger: 0.1,
+    ease: 'power3.out'
+  });
 }
 
-/**
- * Staggered animation for list items or cards
- * @param {string|HTMLElement[]} targets 
- */
-export async function staggerIn(targets, vars = {}) {
-    const gsap = await ensureGSAP();
-    return gsap.from(targets, {
-        opacity: 0,
-        y: 30,
-        stagger: 0.1,
-        duration: 0.8,
-        ease: 'back.out(1.7)',
-        ...vars
-    });
+// ===== CARD STAGGER =====
+export async function animateCardStagger(selector) {
+  if (prefersReducedMotion()) return;
+  const cards = document.querySelectorAll(selector);
+  if (cards.length === 0 || cards.length > 30) return; // skip on large lists
+  const { gsap } = await loadGSAP();
+  gsap.from(cards, {
+    y: 20,
+    opacity: 0,
+    duration: 0.4,
+    stagger: 0.05,
+    ease: 'power2.out',
+    clearProps: 'all'
+  });
 }
 
-/**
- * Pulse animation for attention
- * @param {string|HTMLElement} target 
- */
-export async function pulse(target) {
-    const gsap = await ensureGSAP();
-    return gsap.to(target, {
-        scale: 1.05,
-        duration: 0.3,
-        yoyo: true,
-        repeat: 1,
-        ease: 'power2.inOut'
-    });
+// ===== BADGE UNLOCK (wow moment) =====
+export async function celebrateBadge(element) {
+  if (prefersReducedMotion()) return;
+  const { gsap } = await loadGSAP();
+  gsap.timeline()
+    .to(element, { scale: 1.2, duration: 0.2, ease: 'back.out(2)' })
+    .to(element, { scale: 1, duration: 0.3, ease: 'power2.out' });
 }
 
-/**
- * Page transition (fade out)
- */
-export async function fadeOutPage() {
-    const gsap = await ensureGSAP();
-    return gsap.to('body', {
-        opacity: 0,
-        duration: 0.3,
-        ease: 'power2.inOut'
-    });
+// ===== NUMBER COUNTER =====
+export async function animateNumber(element, target, duration = 1) {
+  if (prefersReducedMotion()) {
+    element.textContent = target;
+    return;
+  }
+  const { gsap } = await loadGSAP();
+  const obj = { val: 0 };
+  gsap.to(obj, {
+    val: target,
+    duration,
+    ease: 'power2.out',
+    onUpdate: () => { element.textContent = Math.round(obj.val); }
+  });
 }

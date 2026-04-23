@@ -2,24 +2,24 @@
 // Dashboard Page Logic
 // ============================================
 import { Videos, Playlists, Activity } from '../modules/storage.js';
-import { animateIn } from '../modules/animations.js';
+import { animateNumber, animateCardStagger } from '../modules/animations.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    animateIn('.dashboard-header');
     await updateStats();
     await renderActivityLog();
+    await renderBadges();
 });
 
 async function updateStats() {
     const videos = await Videos.list();
     const playlists = await Playlists.list();
     
-    document.getElementById('totalVideos').textContent = videos.length;
-    document.getElementById('videosWatched').textContent = videos.filter(v => v.completed).length;
-    document.getElementById('totalPlaylists').textContent = playlists.length;
+    animateNumber(document.getElementById('totalVideos'), videos.length);
+    animateNumber(document.getElementById('videosWatched'), videos.filter(v => v.completed).length);
+    animateNumber(document.getElementById('totalPlaylists'), playlists.length);
     
     // Streaks logic could be added to Activity module
-    document.getElementById('currentStreak').textContent = '—';
+    // document.getElementById('currentStreak').textContent = '—';
 }
 
 async function renderActivityLog() {
@@ -42,6 +42,29 @@ async function renderActivityLog() {
             </div>
         </div>
     `).join('');
+
+    animateCardStagger('.activity-item');
+}
+
+async function renderBadges() {
+    // Placeholder for badges
+    const container = document.getElementById('badgesList');
+    if (!container) return;
+
+    // Simulate some badges
+    const badges = [
+        { icon: 'fa-rocket', name: 'Fast Starter' },
+        { icon: 'fa-brain', name: 'Deep Learner' },
+        { icon: 'fa-fire', name: 'On Fire' }
+    ];
+
+    container.innerHTML = badges.map(b => `
+        <div class="badge-item p-3 glass rounded-circle text-center" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;" title="${b.name}">
+            <i class="fas ${b.icon} text-primary"></i>
+        </div>
+    `).join('');
+
+    animateCardStagger('.badge-item');
 }
 
 function getActivityIcon(action) {

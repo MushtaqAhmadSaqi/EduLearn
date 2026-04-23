@@ -4,12 +4,14 @@
 import { Playlists, Videos } from '../modules/storage.js';
 import { createVideoCard } from '../components/video-card.js';
 import { toast } from '../modules/ui.js';
-import { animateIn, staggerIn } from '../modules/animations.js';
+import { animateCardStagger } from '../modules/animations.js';
 
 let currentPlaylistId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    animateIn('.playlist-sidebar');
+    // Initial animations (sidebar)
+    animateCardStagger('.playlist-item');
+    
     await loadPlaylists();
     setupEventListeners();
 
@@ -53,7 +55,7 @@ async function loadPlaylistVideos(playlistId) {
     const playlistVideos = allVideos.filter(v => video_ids.includes(v.id));
 
     contentArea.innerHTML = `
-        <div class="playlist-header mb-4" data-aos="fade-down">
+        <div class="playlist-header mb-4">
             <h2 class="font-display fs-xl gradient-text">${playlist.name}</h2>
             <p class="text-muted">${playlist.description || 'No description'}</p>
         </div>
@@ -65,7 +67,7 @@ async function loadPlaylistVideos(playlistId) {
     `;
 
     if (playlistVideos.length > 0) {
-        staggerIn('.video-card');
+        animateCardStagger('.video-card');
         
         document.querySelectorAll('.video-card').forEach(card => {
             card.addEventListener('click', () => {
