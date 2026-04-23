@@ -1,0 +1,35 @@
+{
+  "sampleVideos": [
+    {
+      "title": "Introduction to Algebra",
+      "youtubeId": "NybHckSEQBI",
+      "url": "https://www.youtube.com/watch?v=NybHckSEQBI",
+      "tags": "math, algebra, basics",
+      "description": "Learn the fundamentals of algebra in this comprehensive introduction."
+    },
+    {
+      "title": "Photosynthesis Explained",
+      "youtubeId": "UPBMG5EYydo",
+      "url": "https://www.youtube.com/watch?v=UPBMG5EYydo",
+      "tags": "biology, science, plants",
+      "description": "A clear explanation of how plants convert sunlight into energy."
+    },
+    {
+      "title": "World War II Overview",
+      "youtubeId": "Q78COTwT7nE",
+      "url": "https://www.youtube.com/watch?v=Q78COTwT7nE",
+      "tags": "history, war, 20th-century",
+      "description": "A brief overview of the major events of World War II."
+    }
+  ],
+  "defaultPlaylists": [
+    {
+      "name": "Math Fundamentals",
+      "description": "Essential math concepts every student should know"
+    },
+    {
+      "name": "Science Basics",
+      "description": "Introduction to core scientific principles"
+    }
+  ]
+}

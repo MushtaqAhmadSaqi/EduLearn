@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch - EduLearn</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body data-theme="light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg fixed-top glass-nav" id="mainNav">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-graduation-cap"></i> <span>EduLearn</span>
+            </a>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <button id="focusModeBtn" class="btn btn-primary">
+                    <i class="fas fa-eye"></i> Focus Mode
+                </button>
+                <button id="pomodoroBtn" class="btn btn-outline">
+                    <i class="fas fa-clock"></i> <span id="pomodoroTime">25:00</span>
+                </button>
+                <button id="themeToggle" class="btn btn-icon"><i class="fas fa-moon"></i></button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="video-page-wrapper">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Main Video Area -->
+                <div class="col-lg-8">
+                    <div class="video-container">
+                        <div class="video-wrapper">
+                            <iframe id="videoFrame" src="" frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen></iframe>
+                        </div>
+                        <div class="video-progress-bar">
+                            <div id="videoProgress" class="progress-fill"></div>
+                        </div>
+                        <div class="video-info">
+                            <h1 id="videoTitle" class="video-title">Loading...</h1>
+                            <div class="video-meta">
+                                <span id="videoTags" class="tags"></span>
+                                <div class="video-actions">
+                                    <button class="btn btn-icon" id="markComplete" title="Mark as Viewed">
+                                        <i class="fas fa-check-circle"></i>
+                                    </button>
+                                    <button class="btn btn-icon" id="addToPlaylist" title="Add to Playlist">
+                                        <i class="fas fa-list"></i>
+                                    </button>
+                                    <button class="btn btn-icon" id="shareBtn" title="Share">
+                                        <i class="fas fa-share-alt"></i>
+                                    </button>
+                                    <button class="btn btn-icon" id="downloadBtn" title="Download Info">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p id="videoDescription" class="video-description"></p>
+                        </div>
+                    </div>
+
+                    <!-- Notes Section -->
+                    <div class="notes-section">
+                        <div class="notes-header">
+                            <h3><i class="fas fa-sticky-note"></i> Your Notes</h3>
+                            <button id="addNoteBtn" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> Add Note at Current Time
+                            </button>
+                        </div>
+                        <div class="note-input-group">
+                            <input type="text" id="noteInput" class="form-control" placeholder="Write your note...">
+                            <button id="saveNoteBtn" class="btn btn-primary">Save</button>
+                        </div>
+                        <div id="notesList" class="notes-list"></div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-lg-4">
+                    <div class="sidebar-card">
+                        <h3><i class="fas fa-video"></i> Related Videos</h3>
+                        <div id="relatedVideos" class="related-videos"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="modal fade" id="shareModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Share this video</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="share-buttons">
+                        <button class="share-btn whatsapp" data-platform="whatsapp">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </button>
+                        <button class="share-btn twitter" data-platform="twitter">
+                            <i class="fab fa-twitter"></i> Twitter
+                        </button>
+                        <button class="share-btn facebook" data-platform="facebook">
+                            <i class="fab fa-facebook"></i> Facebook
+                        </button>
+                        <button class="share-btn copy" data-platform="copy">
+                            <i class="fas fa-link"></i> Copy Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playlist Modal -->
+    <div class="modal fade" id="playlistModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add to Playlist</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="playlistSelect"></div>
+                    <hr>
+                    <div class="input-group">
+                        <input type="text" id="newPlaylistName" class="form-control" placeholder="New playlist name">
+                        <button id="createPlaylistBtn" class="btn btn-primary">Create</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/notes.js"></script>
+    <script src="js/pomodoro.js"></script>
+    <script src="js/video-player.js"></script>
+</body>
+</html>

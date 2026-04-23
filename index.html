@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="EduLearn - A distraction-free video learning platform for students">
+    <title>EduLearn - Focus. Learn. Grow.</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Lunr.js for search -->
+    <script src="https://unpkg.com/lunr/lunr.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body data-theme="light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg fixed-top glass-nav">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-graduation-cap"></i>
+                <span>EduLearn</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMenu">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link active" href="index.html">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="playlist.html">Playlists</a></li>
+                    <li class="nav-item"><a class="nav-link" href="dashboard.html">Dashboard</a></li>
+                    <li class="nav-item">
+                        <button id="themeToggle" class="btn btn-icon" aria-label="Toggle theme">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button id="accessibilityBtn" class="btn btn-icon" aria-label="Accessibility">
+                            <i class="fas fa-universal-access"></i>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg"></div>
+        <div class="container">
+            <div class="hero-content" data-aos="fade-up">
+                <h1 class="hero-title">Focus. Learn. <span class="gradient-text">Grow.</span></h1>
+                <p class="hero-subtitle">A distraction-free video learning platform designed for students who want to master their studies.</p>
+                
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="heroSearch" placeholder="Search videos, topics, or subjects...">
+                        <button class="btn btn-primary search-btn">Search</button>
+                    </div>
+                    <div id="searchResults" class="search-results"></div>
+                </div>
+                
+                <div class="hero-actions">
+                    <a href="#addVideo" class="btn btn-primary btn-lg">
+                        <i class="fas fa-play-circle"></i> Start Learning
+                    </a>
+                    <a href="dashboard.html" class="btn btn-outline btn-lg">
+                        <i class="fas fa-chart-line"></i> View Progress
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Add Video Section -->
+    <section id="addVideo" class="add-video-section">
+        <div class="container">
+            <h2 class="section-title">Add a YouTube Video</h2>
+            <div class="add-video-card">
+                <form id="addVideoForm">
+                    <div class="form-group">
+                        <label for="videoUrl">YouTube URL</label>
+                        <input type="url" id="videoUrl" class="form-control" placeholder="https://www.youtube.com/watch?v=..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoTitle">Title</label>
+                        <input type="text" id="videoTitle" class="form-control" placeholder="Enter video title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoTags">Tags (comma-separated)</label>
+                        <input type="text" id="videoTags" class="form-control" placeholder="math, algebra, tutorial">
+                    </div>
+                    <div class="form-group">
+                        <label for="videoDescription">Description</label>
+                        <textarea id="videoDescription" class="form-control" rows="3" placeholder="Brief description..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Video
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Videos -->
+    <section class="featured-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Your Videos</h2>
+                <div class="filter-tabs">
+                    <button class="tab-btn active" data-filter="all">All</button>
+                    <button class="tab-btn" data-filter="inprogress">In Progress</button>
+                    <button class="tab-btn" data-filter="viewed">Viewed</button>
+                </div>
+            </div>
+            <div id="videoGrid" class="video-grid"></div>
+            <div id="emptyState" class="empty-state" style="display:none;">
+                <i class="fas fa-video-slash"></i>
+                <h3>No videos yet</h3>
+                <p>Add your first YouTube video to get started!</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features-section">
+        <div class="container">
+            <h2 class="section-title text-center">Why EduLearn?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-eye-slash"></i></div>
+                    <h3>Focus Mode</h3>
+                    <p>Eliminate distractions with our minimalist focus mode.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-sticky-note"></i></div>
+                    <h3>Smart Notes</h3>
+                    <p>Take timestamped notes synced with video playback.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-clock"></i></div>
+                    <h3>Pomodoro Timer</h3>
+                    <p>Built-in study timer with break reminders.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-trophy"></i></div>
+                    <h3>Gamification</h3>
+                    <p>Earn badges and maintain streaks to stay motivated.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 EduLearn. Built for students, by learners.</p>
+        </div>
+    </footer>
+
+    <!-- Accessibility Panel -->
+    <div id="accessibilityPanel" class="accessibility-panel">
+        <h4>Accessibility</h4>
+        <div class="a11y-option">
+            <label>Text Size</label>
+            <div class="btn-group">
+                <button data-size="small">A-</button>
+                <button data-size="normal" class="active">A</button>
+                <button data-size="large">A+</button>
+            </div>
+        </div>
+        <div class="a11y-option">
+            <label>High Contrast</label>
+            <input type="checkbox" id="highContrast">
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

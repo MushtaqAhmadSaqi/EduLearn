@@ -1,0 +1,38 @@
+/* ===== DARK THEME ===== */
+body[data-theme="dark"] {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border: #334155;
+    --shadow: 0 4px 6px -1px rgba(0,0,0,0.3), 0 2px 4px -1px rgba(0,0,0,0.2);
+    --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.4);
+}
+
+body[data-theme="dark"] .glass-nav {
+    background: rgba(30, 41, 59, 0.8);
+}
+
+body[data-theme="dark"] .hero-bg {
+    background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.2), transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.15), transparent 50%);
+}
+
+/* ===== HIGH CONTRAST ===== */
+body.high-contrast {
+    --bg: #000000;
+    --surface: #111111;
+    --text: #ffffff;
+    --text-muted: #cccccc;
+    --border: #ffffff;
+    --primary: #ffff00;
+}
+
+body.high-contrast * {
+    border-color: var(--border) !important;
+}
+
+/* ===== TEXT SIZE ===== */
+body.text-small { font-size: 14px; }
+body.text-normal { font-size: 16px; }
+body.text-large { font-size: 18px; }
