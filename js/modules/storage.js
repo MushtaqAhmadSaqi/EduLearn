@@ -1,51 +1,37 @@
 // ============================================
-// Storage - LocalStorage FIRST, Supabase syncs
-// Optimistic UI approach
+// Storage — LocalStorage-first, crash-proof
+// Works fully offline. Syncs to cloud if configured.
 // ============================================
-import { supabase, getUser } from '../config/supabase.js';
+import { supabase, getUser, isCloudEnabled } from '../config/supabase.js';
 
-const CACHE_PREFIX = 'edulearn:';
+const PREFIX = 'edulearn:';
 
-// ===== LOCAL CACHE =====
 const local = {
   get(key) {
-    try { return JSON.parse(localStorage.getItem(CACHE_PREFIX + key)); }
+    try { return JSON.parse(localStorage.getItem(PREFIX + key)); }
     catch { return null; }
   },
   set(key, value) {
-    try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value)); }
-    catch (e) { console.warn('LocalStorage full:', e); }
-  },
-  remove(key) { localStorage.removeItem(CACHE_PREFIX + key); }
+    try { localStorage.setItem(PREFIX + key, JSON.stringify(value)); return true; }
+    catch (e) { console.warn('Storage failed:', e); return false; }
+  }
 };
 
-// ===== YOUTUBE ID EXTRACTOR =====
 export function extractYouTubeId(url) {
+  if (!url) return null;
   const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
   const match = url.match(regex);
   return match ? match[1] : null;
 }
 
+function uid() {
+  return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+}
+
 // ===== VIDEOS =====
 export const Videos = {
   async list() {
-    const cached = local.get('videos') || [];
-    // Return cache instantly, fetch fresh in background
-    this._syncFromCloud();
-    return cached;
-  },
-
-  async _syncFromCloud() {
-    const user = await getUser();
-    if (!user) return;
-    const { data } = await supabase
-      .from('videos')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (data) {
-      local.set('videos', data);
-      window.dispatchEvent(new CustomEvent('videos:synced', { detail: data }));
-    }
+    return local.get('videos') || [];
   },
 
   async get(id) {
@@ -57,53 +43,41 @@ export const Videos = {
     const youtube_id = extractYouTubeId(url);
     if (!youtube_id) throw new Error('Invalid YouTube URL');
 
-    const user = await getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    // Optimistic insert (temp ID)
-    const tempVideo = {
-      id: 'temp_' + Date.now(),
-      user_id: user.id,
-      youtube_id, title, description, tags,
-      progress: 0, watch_time: 0, completed: false,
-      created_at: new Date().toISOString(),
-      _pending: true
+    const video = {
+      id: uid(),
+      user_id: 'local-user',
+      youtube_id,
+      title,
+      description,
+      tags: Array.isArray(tags) ? tags : [],
+      progress: 0,
+      watch_time: 0,
+      completed: false,
+      created_at: new Date().toISOString()
     };
 
     const list = local.get('videos') || [];
-    list.unshift(tempVideo);
+    list.unshift(video);
     local.set('videos', list);
-    window.dispatchEvent(new CustomEvent('videos:changed'));
-
-    // Send to cloud
-    const { data, error } = await supabase
-      .from('videos')
-      .insert({ user_id: user.id, youtube_id, title, description, tags })
-      .select()
-      .single();
-
-    if (error) {
-      // Rollback
-      const updated = local.get('videos').filter(v => v.id !== tempVideo.id);
-      local.set('videos', updated);
-      window.dispatchEvent(new CustomEvent('videos:changed'));
-      throw error;
-    }
-
-    // Replace temp with real
-    const final = local.get('videos').map(v => v.id === tempVideo.id ? data : v);
-    local.set('videos', final);
     Activity.log('added_video', title);
     window.dispatchEvent(new CustomEvent('videos:changed'));
-    return data;
+
+    // Optional cloud sync
+    if (isCloudEnabled) {
+      try {
+        const user = await getUser();
+        await supabase.from('videos').insert({
+          user_id: user.id, youtube_id, title, description, tags
+        });
+      } catch (e) { console.warn('Cloud sync failed:', e); }
+    }
+    return video;
   },
 
   async updateProgress(id, progress, watchTime) {
-    // Local first
     const list = local.get('videos') || [];
     const idx = list.findIndex(v => v.id === id);
     if (idx === -1) return;
-
     list[idx].progress = progress;
     list[idx].watch_time = watchTime;
     if (progress >= 95 && !list[idx].completed) {
@@ -111,25 +85,6 @@ export const Videos = {
       Activity.log('completed_video', list[idx].title);
     }
     local.set('videos', list);
-
-    // Debounced cloud update
-    clearTimeout(this._progressTimer);
-    this._progressTimer = setTimeout(async () => {
-      await supabase.from('videos')
-        .update({
-          progress: list[idx].progress,
-          watch_time: list[idx].watch_time,
-          completed: list[idx].completed
-        })
-        .eq('id', id);
-    }, 2000);
-  },
-
-  async remove(id) {
-    const list = (local.get('videos') || []).filter(v => v.id !== id);
-    local.set('videos', list);
-    window.dispatchEvent(new CustomEvent('videos:changed'));
-    await supabase.from('videos').delete().eq('id', id);
   },
 
   async markComplete(id) {
@@ -142,101 +97,65 @@ export const Videos = {
       Activity.log('completed_video', v.title);
       window.dispatchEvent(new CustomEvent('videos:changed'));
     }
-    await supabase.from('videos').update({ completed: true, progress: 100 }).eq('id', id);
+  },
+
+  async remove(id) {
+    const list = (local.get('videos') || []).filter(v => v.id !== id);
+    local.set('videos', list);
+    window.dispatchEvent(new CustomEvent('videos:changed'));
   }
 };
 
 // ===== NOTES =====
 export const Notes = {
   async list(videoId) {
-    const cached = local.get(`notes:${videoId}`) || [];
-    this._sync(videoId);
-    return cached;
-  },
-
-  async _sync(videoId) {
-    const { data } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('video_id', videoId)
-      .order('timestamp_sec', { ascending: true });
-    if (data) {
-      local.set(`notes:${videoId}`, data);
-      window.dispatchEvent(new CustomEvent('notes:synced', { detail: { videoId, data } }));
-    }
+    return local.get(`notes:${videoId}`) || [];
   },
 
   async add(videoId, timestampSec, content) {
-    const user = await getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    const tempNote = {
-      id: 'temp_' + Date.now(),
-      user_id: user.id,
+    const note = {
+      id: uid(),
       video_id: videoId,
       timestamp_sec: timestampSec,
       content,
-      created_at: new Date().toISOString(),
-      _pending: true
+      created_at: new Date().toISOString()
     };
-
     const list = local.get(`notes:${videoId}`) || [];
-    list.push(tempNote);
+    list.push(note);
     list.sort((a, b) => a.timestamp_sec - b.timestamp_sec);
     local.set(`notes:${videoId}`, list);
     window.dispatchEvent(new CustomEvent('notes:changed', { detail: videoId }));
-
-    const { data, error } = await supabase.from('notes').insert({
-      user_id: user.id, video_id: videoId,
-      timestamp_sec: timestampSec, content
-    }).select().single();
-
-    if (!error && data) {
-      const updated = local.get(`notes:${videoId}`).map(n => n.id === tempNote.id ? data : n);
-      local.set(`notes:${videoId}`, updated);
-      window.dispatchEvent(new CustomEvent('notes:changed', { detail: videoId }));
-    }
-    return data;
+    return note;
   },
 
   async remove(videoId, noteId) {
     const list = (local.get(`notes:${videoId}`) || []).filter(n => n.id !== noteId);
     local.set(`notes:${videoId}`, list);
     window.dispatchEvent(new CustomEvent('notes:changed', { detail: videoId }));
-    await supabase.from('notes').delete().eq('id', noteId);
   }
 };
 
 // ===== PLAYLISTS =====
 export const Playlists = {
   async list() {
-    const cached = local.get('playlists') || [];
-    this._sync();
-    return cached;
-  },
-
-  async _sync() {
-    const { data } = await supabase.from('playlists').select('*').order('created_at', { ascending: false });
-    if (data) {
-      local.set('playlists', data);
-      window.dispatchEvent(new CustomEvent('playlists:synced'));
-    }
+    return local.get('playlists') || [];
   },
 
   async create({ name, description = '' }) {
-    const user = await getUser();
-    if (!user) throw new Error('Not authenticated');
-    const { data, error } = await supabase
-      .from('playlists')
-      .insert({ user_id: user.id, name, description, video_ids: [] })
-      .select().single();
-    if (error) throw error;
+    const playlist = {
+      id: uid(),
+      name,
+      description,
+      video_ids: [],
+      share_token: Math.random().toString(36).slice(2, 14),
+      created_at: new Date().toISOString()
+    };
     const list = local.get('playlists') || [];
-    list.unshift(data);
+    list.unshift(playlist);
     local.set('playlists', list);
-    Activity.log('added_video', name);
+    Activity.log('created_playlist', name);
     window.dispatchEvent(new CustomEvent('playlists:changed'));
-    return data;
+    return playlist;
   },
 
   async addVideo(playlistId, videoId) {
@@ -246,7 +165,6 @@ export const Playlists = {
     if (!p.video_ids.includes(videoId)) {
       p.video_ids.push(videoId);
       local.set('playlists', list);
-      await supabase.from('playlists').update({ video_ids: p.video_ids }).eq('id', playlistId);
       window.dispatchEvent(new CustomEvent('playlists:changed'));
     }
   },
@@ -254,46 +172,50 @@ export const Playlists = {
   async remove(id) {
     const list = (local.get('playlists') || []).filter(p => p.id !== id);
     local.set('playlists', list);
-    await supabase.from('playlists').delete().eq('id', id);
     window.dispatchEvent(new CustomEvent('playlists:changed'));
   }
 };
 
 // ===== ACTIVITY =====
 export const Activity = {
-  async log(action, detail) {
-    const user = await getUser();
-    if (!user) return;
-    await supabase.from('activity').insert({ user_id: user.id, action, detail });
+  log(action, detail) {
+    const list = local.get('activity') || [];
+    list.unshift({
+      id: uid(),
+      action,
+      detail,
+      created_at: new Date().toISOString()
+    });
+    // Keep last 200
+    if (list.length > 200) list.length = 200;
+    local.set('activity', list);
   },
-  async list(limit = 20) {
-    const { data } = await supabase
-      .from('activity')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    return data || [];
+  async list(limit = 30) {
+    return (local.get('activity') || []).slice(0, limit);
   }
 };
 
 // ===== GOALS =====
 export const Goals = {
   async list() {
-    const { data } = await supabase.from('goals').select('*').order('created_at', { ascending: false });
-    return data || [];
+    return local.get('goals') || [];
   },
   async add(goal) {
-    const user = await getUser();
-    const { data } = await supabase.from('goals').insert({ ...goal, user_id: user.id }).select().single();
-    return data;
+    const entry = { id: uid(), ...goal, created_at: new Date().toISOString() };
+    const list = local.get('goals') || [];
+    list.unshift(entry);
+    local.set('goals', list);
+    return entry;
   },
   async remove(id) {
-    await supabase.from('goals').delete().eq('id', id);
+    const list = (local.get('goals') || []).filter(g => g.id !== id);
+    local.set('goals', list);
   }
 };
 
-// ===== UTILS =====
+// ===== UTIL =====
 export function formatTime(seconds) {
+  seconds = Math.max(0, seconds || 0);
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
