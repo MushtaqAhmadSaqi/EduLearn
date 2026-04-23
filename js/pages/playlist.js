@@ -4,20 +4,17 @@
 import { Playlists, Videos } from '../modules/storage.js';
 import { toast, openModal, confirmDialog, renderEmptyState, initTheme } from '../modules/ui.js';
 import { requireAuth, supabase } from '../config/supabase.js';
-import { mountProfileMenu } from '../modules/profile.js';
+import { initUserMenu } from '../modules/user-menu.js';
+import { animateCardStagger } from '../modules/animations.js';
 
 let currentPlaylistId = null;
 
 (async function init() {
   initTheme();
+  initUserMenu();
   const user = await requireAuth('auth.html');
   if (!user) return;
   
-  // Note: profile.js must be implemented for this to work
-  if (typeof mountProfileMenu === 'function') {
-    mountProfileMenu(document.getElementById('profileSlot'));
-  }
-
   await checkSharedImport();
   await loadPlaylists();
 

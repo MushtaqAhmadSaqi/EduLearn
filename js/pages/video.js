@@ -7,6 +7,7 @@ import { toast, openModal, confirmDialog, initTheme } from '../modules/ui.js';
 import { requireAuth } from '../config/supabase.js';
 import { Pomodoro } from '../components/pomodoro.js';
 import { NoteEditor } from '../components/note-editor.js';
+import { initUserMenu } from '../modules/user-menu.js';
 
 let player = null;
 let currentVideo = null;
@@ -17,6 +18,7 @@ let isPlayerReady = false;
 // ===== INIT =====
 (async function init() {
   initTheme();
+  initUserMenu();
 
   const user = await requireAuth('auth.html');
   if (!user) return;

@@ -5,7 +5,7 @@ import { Videos, extractYouTubeId } from '../modules/storage.js';
 import { toast, renderSkeletonGrid, renderEmptyState, openModal, initTheme } from '../modules/ui.js';
 import { animateHeroEntrance, animateCardStagger } from '../modules/animations.js';
 import { getUser } from '../config/supabase.js';
-import { mountProfileMenu } from '../modules/profile.js';
+import { initUserMenu } from '../modules/user-menu.js';
 
 let currentFilter = 'all';
 
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const grid = document.getElementById('videoGrid');
   renderSkeletonGrid(grid, 8);
 
-  mountProfileMenu(document.getElementById('profileSlot'));
+  initUserMenu();
 
   const user = await getUser();
   if (!user) {
