@@ -1,137 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analytics | EduLearn</title>
-    
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/themes.css">
-    <link rel="stylesheet" href="css/custom.css">
-    <link rel="stylesheet" href="css/responsive.css">
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#6366f1',
-                        secondary: '#8b5cf6',
-                        accent: '#ec4899',
-                    },
-                    fontFamily: {
-                        display: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
-                        sans: ['Inter', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — EduLearn</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { display: ['Plus Jakarta Sans', 'sans-serif'] }}}}
+  </script>
+  <link rel="stylesheet" href="css/custom.css">
 </head>
-<body data-theme="light">
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg fixed-top glass">
-        <div class="container">
-            <a class="navbar-brand gradient-text" href="index.html">
-                <i class="fas fa-graduation-cap"></i> <span class="font-display fw-bold">EduLearn</span>
-            </a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="playlist.html">Playlists</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="dashboard.html">Dashboard</a></li>
-                    <li class="nav-item ms-lg-2">
-                        <button id="themeToggle" class="btn btn-icon btn-sm"><i class="fas fa-moon"></i></button>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
 
-    <div class="dashboard-page pt-5 mt-4">
-        <div class="container">
-            <header class="dashboard-header mb-5" data-aos="fade-down">
-                <h1 class="fs-2xl font-display fw-bold">Performance Analytics</h1>
-                <p class="text-muted">Measure your growth and maintain your learning momentum.</p>
-            </header>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased">
 
-            <!-- Stats Grid -->
-            <div class="row g-4 mb-5">
-                <div class="col-6 col-md-3">
-                    <div class="stat-card glass p-4 text-center card-lift">
-                        <div class="stat-icon mb-3 mx-auto bg-blue"><i class="fas fa-video"></i></div>
-                        <h3 id="totalVideos" class="fs-xl font-display mb-1">0</h3>
-                        <p class="fs-xs text-muted text-uppercase fw-bold">Videos</p>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="stat-card glass p-4 text-center card-lift">
-                        <div class="stat-icon mb-3 mx-auto bg-green"><i class="fas fa-check-circle"></i></div>
-                        <h3 id="videosWatched" class="fs-xl font-display mb-1">0</h3>
-                        <p class="fs-xs text-muted text-uppercase fw-bold">Completed</p>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="stat-card glass p-4 text-center card-lift">
-                        <div class="stat-icon mb-3 mx-auto bg-purple"><i class="fas fa-layer-group"></i></div>
-                        <h3 id="totalPlaylists" class="fs-xl font-display mb-1">0</h3>
-                        <p class="fs-xs text-muted text-uppercase fw-bold">Collections</p>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="stat-card glass p-4 text-center card-lift border-primary border-opacity-25">
-                        <div class="stat-icon mb-3 mx-auto bg-orange"><i class="fas fa-fire"></i></div>
-                        <h3 id="currentStreak" class="fs-xl font-display mb-1">0</h3>
-                        <p class="fs-xs text-muted text-uppercase fw-bold">Day Streak</p>
-                    </div>
-                </div>
-            </div>
+  <nav class="glass fixed top-0 inset-x-0 z-40 border-b border-slate-200/50 dark:border-slate-800/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2 font-display font-bold text-lg">
+        <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-white text-sm">E</span>
+        <span class="gradient-text">EduLearn</span>
+      </a>
 
-            <!-- Charts and Activity -->
-            <div class="row g-4">
-                <div class="col-lg-8">
-                    <div class="glass p-4 mb-4">
-                        <h3 class="font-display fs-lg mb-4">Study Trends</h3>
-                        <canvas id="activityChart" height="250"></canvas>
-                    </div>
-                    <div class="glass p-4">
-                        <h3 class="font-display fs-lg mb-4">Recent Milestones</h3>
-                        <div id="activityLog" class="activity-log">
-                            <!-- Activities injected here -->
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="glass p-4 mb-4">
-                        <h3 class="font-display fs-lg mb-4">Course Mastery</h3>
-                        <canvas id="completionChart" height="250"></canvas>
-                    </div>
-                    <div class="glass p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h3 class="font-display fs-lg m-0">Unlocked Badges</h3>
-                            <a href="#" class="fs-xs text-primary">View All</a>
-                        </div>
-                        <div id="badgesList" class="badges-grid d-flex flex-wrap gap-3">
-                            <!-- Badges injected here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      <div class="hidden md:flex items-center gap-1">
+        <a href="index.html" class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">Home</a>
+        <a href="playlist.html" class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">Playlists</a>
+        <a href="dashboard.html" class="px-4 py-2 rounded-lg text-sm font-medium text-indigo-600 dark:text-indigo-400">Dashboard</a>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button data-theme-toggle class="w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center" aria-label="Toggle theme">
+          <svg class="w-5 h-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </button>
+        <div id="profileSlot"></div>
+      </div>
     </div>
+  </nav>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="js/pages/dashboard.js"></script>
+  <main class="pt-24 pb-16 px-4 sm:px-6">
+    <div class="max-w-7xl mx-auto">
+
+      <div class="mb-8">
+        <h1 class="font-display font-bold text-3xl sm:text-4xl mb-1">Your Dashboard</h1>
+        <p class="text-slate-500 dark:text-slate-400">Track your learning journey and celebrate milestones</p>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="stat-card rounded-2xl p-5 bg-white dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-3">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          </div>
+          <div id="stat-videos" class="font-display font-bold text-2xl sm:text-3xl">0</div>
+          <div class="text-xs text-slate-500 mt-1">Videos Added</div>
+        </div>
+
+        <div class="stat-card rounded-2xl p-5 bg-white dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center mb-3">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div id="stat-completed" class="font-display font-bold text-2xl sm:text-3xl">0</div>
+          <div class="text-xs text-slate-500 mt-1">Completed</div>
+        </div>
+
+        <div class="stat-card rounded-2xl p-5 bg-white dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-3">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10m-10 4h10"/></svg>
+          </div>
+          <div id="stat-playlists" class="font-display font-bold text-2xl sm:text-3xl">0</div>
+          <div class="text-xs text-slate-500 mt-1">Playlists</div>
+        </div>
+
+        <div class="stat-card rounded-2xl p-5 bg-white dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center mb-3">
+            <span class="text-xl">🔥</span>
+          </div>
+          <div id="stat-streak" class="font-display font-bold text-2xl sm:text-3xl">0</div>
+          <div class="text-xs text-slate-500 mt-1">Day Streak</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div class="lg:col-span-2 rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-display font-bold text-lg">Weekly Activity</h2>
+            <span class="text-xs text-slate-500">Last 7 days</span>
+          </div>
+          <div class="h-64"><canvas id="activityChart"></canvas></div>
+        </div>
+
+        <div class="rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+          <h2 class="font-display font-bold text-lg mb-4">Completion</h2>
+          <div class="h-64 flex items-center justify-center"><canvas id="completionChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Goals + Badges -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div class="rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-display font-bold text-lg">Learning Goals</h2>
+            <button id="addGoalBtn" class="btn-primary text-sm">＋ New Goal</button>
+          </div>
+          <div id="goalsList" class="space-y-3"></div>
+        </div>
+
+        <div class="rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+          <h2 class="font-display font-bold text-lg mb-4">Achievements</h2>
+          <div id="badgesList" class="grid grid-cols-3 sm:grid-cols-4 gap-3"></div>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+        <h2 class="font-display font-bold text-lg mb-4">Recent Activity</h2>
+        <div id="activityLog" class="space-y-2"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script type="module" src="js/pages/dashboard.js"></script>
 </body>
 </html>
