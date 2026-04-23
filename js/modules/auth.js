@@ -1,152 +1,110 @@
 // ============================================
-// Authentication Module
+// Auth Module
 // ============================================
-import { supabase, getUser } from '../config/supabase.js';
-import { toast } from './ui.js';
+import { supabase } from '../config/supabase.js';
+import { toast, initTheme } from './ui.js';
 
-export const Auth = {
-    /**
-     * Sign up a new user
-     */
-    async signUp(email, password, metadata = {}) {
-        try {
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: { data: metadata }
-            });
-            if (error) throw error;
-            toast('Check your email for confirmation!', 'success');
-            return data;
-        } catch (error) {
-            toast(error.message, 'error');
-            return null;
-        }
-    },
+document.addEventListener('DOMContentLoaded', async () => {
+  initTheme();
+  initTabs();
+  initSigninForm();
+  initSignupForm();
 
-    /**
-     * Sign in an existing user
-     */
-    async signIn(email, password) {
-        try {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) throw error;
-            toast('Welcome back!', 'success');
-            return data;
-        } catch (error) {
-            toast(error.message, 'error');
-            return null;
-        }
-    },
+  // Auto-redirect if already logged in
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) window.location.href = 'index.html';
+});
 
-    /**
-     * Sign out current user
-     */
-    async signOut() {
-        try {
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
-            toast('Logged out successfully', 'info');
-            window.location.href = 'auth.html';
-        } catch (error) {
-            toast(error.message, 'error');
-        }
+// ===== TABS =====
+function initTabs() {
+  const tabs = document.querySelectorAll('.tab-btn');
+  const signin = document.getElementById('signinForm');
+  const signup = document.getElementById('signupForm');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => {
+        t.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+        t.classList.add('text-slate-500');
+      });
+      tab.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+      tab.classList.remove('text-slate-500');
+
+      if (tab.dataset.tab === 'signin') {
+        signin.classList.remove('hidden');
+        signup.classList.add('hidden');
+      } else {
+        signup.classList.remove('hidden');
+        signin.classList.add('hidden');
+      }
+    });
+  });
+}
+
+// ===== SIGN IN =====
+function initSigninForm() {
+  const form = document.getElementById('signinForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type=submit]');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin">◌</span> Signing in...';
+
+    const fd = new FormData(form);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: fd.get('email'),
+      password: fd.get('password')
+    });
+
+    if (error) {
+      toast(error.message, 'error');
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
     }
-};
 
-/**
- * Auth Page UI Handling
- * This logic runs only on the auth.html page
- */
-const initAuthUI = () => {
-    const signinForm = document.getElementById('signinForm');
-    const signupForm = document.getElementById('signupForm');
-    if (!signinForm || !signupForm) return;
+    toast('Welcome back!', 'success');
+    setTimeout(() => window.location.href = 'index.html', 400);
+  });
+}
 
-    const tabBtns = document.querySelectorAll('.tab-btn');
+// ===== SIGN UP =====
+function initSignupForm() {
+  const form = document.getElementById('signupForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type=submit]');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin">◌</span> Creating...';
 
-    // Tab Switching Logic
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tab = btn.dataset.tab;
-            
-            // Update buttons styling
-            tabBtns.forEach(b => {
-                b.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-                b.classList.add('text-slate-500');
-            });
-            btn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-            btn.classList.remove('text-slate-500');
-
-            // Toggle forms visibility
-            if (tab === 'signin') {
-                signinForm.classList.remove('hidden');
-                signupForm.classList.add('hidden');
-                document.title = 'Sign In — EduLearn';
-            } else {
-                signinForm.classList.add('hidden');
-                signupForm.classList.remove('hidden');
-                document.title = 'Create Account — EduLearn';
-            }
-        });
+    const fd = new FormData(form);
+    const { data, error } = await supabase.auth.signUp({
+      email: fd.get('email'),
+      password: fd.get('password')
     });
 
-    // Form Submissions
-    const handleFormSubmit = async (form, action) => {
-        const formData = new FormData(form);
-        const email = formData.get('email');
-        const password = formData.get('password');
-        
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = `
-            <span class="flex items-center justify-center gap-2">
-                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-            </span>
-        `;
+    if (error) {
+      toast(error.message, 'error');
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
+    }
 
-        try {
-            const result = await (action === 'signin' ? Auth.signIn(email, password) : Auth.signUp(email, password));
-            if (result) {
-                // For signup, check if we got a session (auto-login)
-                if (action === 'signin' || (result.session || result.user)) {
-                    // Short delay for better UX
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 500);
-                } else {
-                    // Probably needs email confirmation
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalText;
-                }
-            } else {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            }
-        } catch (err) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        }
-    };
+    if (data.user && !data.session) {
+      toast('Check your email to confirm your account', 'success', 5000);
+    } else {
+      toast('Account created!', 'success');
+      setTimeout(() => window.location.href = 'index.html', 400);
+    }
+    btn.disabled = false;
+    btn.textContent = originalText;
+  });
+}
 
-    signinForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        handleFormSubmit(signinForm, 'signin');
-    });
-
-    signupForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        handleFormSubmit(signupForm, 'signup');
-    });
-};
-
-// Initialize if in browser environment
-if (typeof document !== 'undefined') {
-    initAuthUI();
+// ===== SIGN OUT (used from other pages) =====
+export async function signOut() {
+  await supabase.auth.signOut();
+  window.location.href = 'auth.html';
 }
