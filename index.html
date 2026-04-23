@@ -3,30 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="EduLearn - A distraction-free video learning platform for students">
+    <meta name="description" content="EduLearn - A premium, distraction-free video learning platform">
     <title>EduLearn - Focus. Learn. Grow.</title>
     
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-    <!-- Lunr.js for search -->
-    <script src="https://unpkg.com/lunr/lunr.js"></script>
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/custom.css">
     <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body data-theme="light">
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg fixed-top glass-nav">
+    <nav class="navbar navbar-expand-lg fixed-top glass">
         <div class="container">
-            <a class="navbar-brand" href="index.html">
+            <a class="navbar-brand gradient-text" href="index.html">
                 <i class="fas fa-graduation-cap"></i>
-                <span>EduLearn</span>
+                <span class="font-display fw-bold">EduLearn</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
                 <span class="navbar-toggler-icon"></span>
@@ -36,14 +33,12 @@
                     <li class="nav-item"><a class="nav-link active" href="index.html">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="playlist.html">Playlists</a></li>
                     <li class="nav-item"><a class="nav-link" href="dashboard.html">Dashboard</a></li>
-                    <li class="nav-item">
+                    <li class="nav-item ms-lg-3">
+                        <a href="auth.html" class="btn-primary btn-sm" id="authBtn">Login</a>
+                    </li>
+                    <li class="nav-item ms-lg-2">
                         <button id="themeToggle" class="btn btn-icon" aria-label="Toggle theme">
                             <i class="fas fa-moon"></i>
-                        </button>
-                    </li>
-                    <li class="nav-item">
-                        <button id="accessibilityBtn" class="btn btn-icon" aria-label="Accessibility">
-                            <i class="fas fa-universal-access"></i>
                         </button>
                     </li>
                 </ul>
@@ -55,24 +50,24 @@
     <section class="hero">
         <div class="hero-bg"></div>
         <div class="container">
-            <div class="hero-content" data-aos="fade-up">
-                <h1 class="hero-title">Focus. Learn. <span class="gradient-text">Grow.</span></h1>
-                <p class="hero-subtitle">A distraction-free video learning platform designed for students who want to master their studies.</p>
+            <div class="hero-content">
+                <h1 class="fs-hero font-display fw-800">Focus. Learn. <span class="gradient-text">Grow.</span></h1>
+                <p class="hero-subtitle fs-lg">A distraction-free video learning platform designed for students who want to master their studies.</p>
                 
-                <div class="search-container">
-                    <div class="search-box">
+                <div class="search-container mb-5">
+                    <div class="search-box glass">
                         <i class="fas fa-search"></i>
                         <input type="text" id="heroSearch" placeholder="Search videos, topics, or subjects...">
-                        <button class="btn btn-primary search-btn">Search</button>
+                        <button class="btn-primary search-btn">Search</button>
                     </div>
-                    <div id="searchResults" class="search-results"></div>
+                    <div id="searchResults" class="search-results glass"></div>
                 </div>
                 
                 <div class="hero-actions">
-                    <a href="#addVideo" class="btn btn-primary btn-lg">
+                    <a href="#addVideo" class="btn-primary">
                         <i class="fas fa-play-circle"></i> Start Learning
                     </a>
-                    <a href="dashboard.html" class="btn btn-outline btn-lg">
+                    <a href="dashboard.html" class="btn btn-outline border-2 rounded-3">
                         <i class="fas fa-chart-line"></i> View Progress
                     </a>
                 </div>
@@ -81,29 +76,31 @@
     </section>
 
     <!-- Add Video Section -->
-    <section id="addVideo" class="add-video-section">
+    <section id="addVideo" class="add-video-section py-5">
         <div class="container">
-            <h2 class="section-title">Add a YouTube Video</h2>
-            <div class="add-video-card">
+            <h2 class="section-title font-display text-center mb-5">Expand Your Library</h2>
+            <div class="add-video-card glass p-4 p-lg-5">
                 <form id="addVideoForm">
-                    <div class="form-group">
-                        <label for="videoUrl">YouTube URL</label>
-                        <input type="url" id="videoUrl" class="form-control" placeholder="https://www.youtube.com/watch?v=..." required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fs-xs fw-bold text-uppercase">YouTube URL</label>
+                            <input type="url" id="videoUrl" class="form-control" placeholder="https://www.youtube.com/watch?v=..." required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fs-xs fw-bold text-uppercase">Title</label>
+                            <input type="text" id="videoTitle" class="form-control" placeholder="Enter video title" required>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="videoTitle">Title</label>
-                        <input type="text" id="videoTitle" class="form-control" placeholder="Enter video title" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="videoTags">Tags (comma-separated)</label>
+                    <div class="mb-3">
+                        <label class="form-label fs-xs fw-bold text-uppercase">Tags (comma-separated)</label>
                         <input type="text" id="videoTags" class="form-control" placeholder="math, algebra, tutorial">
                     </div>
-                    <div class="form-group">
-                        <label for="videoDescription">Description</label>
+                    <div class="mb-4">
+                        <label class="form-label fs-xs fw-bold text-uppercase">Description</label>
                         <textarea id="videoDescription" class="form-control" rows="3" placeholder="Brief description..."></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Add Video
+                    <button type="submit" class="btn-primary w-100">
+                        <i class="fas fa-plus"></i> Add Video to Library
                     </button>
                 </form>
             </div>
@@ -111,19 +108,21 @@
     </section>
 
     <!-- Featured Videos -->
-    <section class="featured-section">
+    <section class="featured-section py-5">
         <div class="container">
-            <div class="section-header">
-                <h2 class="section-title">Your Videos</h2>
-                <div class="filter-tabs">
+            <div class="section-header d-flex justify-content-between align-items-center mb-4">
+                <h2 class="section-title font-display m-0">Your Videos</h2>
+                <div class="filter-tabs glass p-1">
                     <button class="tab-btn active" data-filter="all">All</button>
                     <button class="tab-btn" data-filter="inprogress">In Progress</button>
                     <button class="tab-btn" data-filter="viewed">Viewed</button>
                 </div>
             </div>
-            <div id="videoGrid" class="video-grid"></div>
-            <div id="emptyState" class="empty-state" style="display:none;">
-                <i class="fas fa-video-slash"></i>
+            <div id="videoGrid" class="video-grid">
+                <!-- Skeleton loaders will go here -->
+            </div>
+            <div id="emptyState" class="empty-state text-center py-5" style="display:none;">
+                <i class="fas fa-video-slash fs-1 mb-3 opacity-25"></i>
                 <h3>No videos yet</h3>
                 <p>Add your first YouTube video to get started!</p>
             </div>
@@ -131,62 +130,47 @@
     </section>
 
     <!-- Features Section -->
-    <section class="features-section">
+    <section class="features-section py-5 bg-light">
         <div class="container">
-            <h2 class="section-title text-center">Why EduLearn?</h2>
+            <h2 class="section-title text-center font-display mb-5">Engineered for Deep Work</h2>
             <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-eye-slash"></i></div>
-                    <h3>Focus Mode</h3>
-                    <p>Eliminate distractions with our minimalist focus mode.</p>
+                <div class="feature-card glass card-lift text-center p-4">
+                    <div class="feature-icon mb-3"><i class="fas fa-eye-slash"></i></div>
+                    <h3 class="fs-lg font-display">Focus Mode</h3>
+                    <p class="text-muted">Eliminate distractions with our minimalist interface designed for concentration.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-sticky-note"></i></div>
-                    <h3>Smart Notes</h3>
-                    <p>Take timestamped notes synced with video playback.</p>
+                <div class="feature-card glass card-lift text-center p-4">
+                    <div class="feature-icon mb-3"><i class="fas fa-sticky-note"></i></div>
+                    <h3 class="fs-lg font-display">Smart Notes</h3>
+                    <p class="text-muted">Take timestamped notes synced directly with video playback points.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-clock"></i></div>
-                    <h3>Pomodoro Timer</h3>
-                    <p>Built-in study timer with break reminders.</p>
+                <div class="feature-card glass card-lift text-center p-4">
+                    <div class="feature-icon mb-3"><i class="fas fa-clock"></i></div>
+                    <h3 class="fs-lg font-display">Pomodoro</h3>
+                    <p class="text-muted">Built-in study timer to help you maintain peak mental performance.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-trophy"></i></div>
-                    <h3>Gamification</h3>
-                    <p>Earn badges and maintain streaks to stay motivated.</p>
+                <div class="feature-card glass card-lift text-center p-4">
+                    <div class="feature-icon mb-3"><i class="fas fa-cloud"></i></div>
+                    <h3 class="fs-lg font-display">Cloud Sync</h3>
+                    <p class="text-muted">Your progress and notes are synced across all your devices automatically.</p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <p>&copy; 2026 EduLearn. Built for students, by learners.</p>
+    <footer class="footer py-5 glass border-top">
+        <div class="container text-center">
+            <div class="footer-logo gradient-text fs-xl mb-3">
+                <i class="fas fa-graduation-cap"></i> EduLearn
+            </div>
+            <p class="text-muted mb-0">&copy; 2026 EduLearn. Built for students, by learners.</p>
         </div>
     </footer>
 
-    <!-- Accessibility Panel -->
-    <div id="accessibilityPanel" class="accessibility-panel">
-        <h4>Accessibility</h4>
-        <div class="a11y-option">
-            <label>Text Size</label>
-            <div class="btn-group">
-                <button data-size="small">A-</button>
-                <button data-size="normal" class="active">A</button>
-                <button data-size="large">A+</button>
-            </div>
-        </div>
-        <div class="a11y-option">
-            <label>High Contrast</label>
-            <input type="checkbox" id="highContrast">
-        </div>
-    </div>
-
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/search.js"></script>
-    <script src="js/main.js"></script>
+    <script type="module" src="js/pages/home.js"></script>
 </body>
 </html>
+

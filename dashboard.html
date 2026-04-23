@@ -3,139 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - EduLearn</title>
+    <title>Analytics | EduLearn</title>
+    
+    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/custom.css">
     <link rel="stylesheet" href="css/responsive.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body data-theme="light">
-    <nav class="navbar navbar-expand-lg fixed-top glass-nav">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg fixed-top glass">
         <div class="container">
-            <a class="navbar-brand" href="index.html">
-                <i class="fas fa-graduation-cap"></i> <span>EduLearn</span>
+            <a class="navbar-brand gradient-text" href="index.html">
+                <i class="fas fa-graduation-cap"></i> <span class="font-display fw-bold">EduLearn</span>
             </a>
             <div class="collapse navbar-collapse">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="playlist.html">Playlists</a></li>
                     <li class="nav-item"><a class="nav-link active" href="dashboard.html">Dashboard</a></li>
-                    <li class="nav-item"><button id="themeToggle" class="btn btn-icon"><i class="fas fa-moon"></i></button></li>
+                    <li class="nav-item ms-lg-2">
+                        <button id="themeToggle" class="btn btn-icon btn-sm"><i class="fas fa-moon"></i></button>
+                    </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="dashboard-page">
+    <div class="dashboard-page pt-5 mt-4">
         <div class="container">
-            <div class="dashboard-header">
-                <h1>Your Learning Dashboard</h1>
-                <p>Track your progress and stay motivated</p>
+            <header class="dashboard-header mb-5" data-aos="fade-down">
+                <h1 class="fs-2xl font-display fw-bold">Performance Analytics</h1>
+                <p class="text-muted">Measure your growth and maintain your learning momentum.</p>
+            </header>
+
+            <!-- Stats Grid -->
+            <div class="row g-4 mb-5">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card glass p-4 text-center card-lift">
+                        <div class="stat-icon mb-3 mx-auto bg-blue"><i class="fas fa-video"></i></div>
+                        <h3 id="totalVideos" class="fs-xl font-display mb-1">0</h3>
+                        <p class="fs-xs text-muted text-uppercase fw-bold">Videos</p>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card glass p-4 text-center card-lift">
+                        <div class="stat-icon mb-3 mx-auto bg-green"><i class="fas fa-check-circle"></i></div>
+                        <h3 id="videosWatched" class="fs-xl font-display mb-1">0</h3>
+                        <p class="fs-xs text-muted text-uppercase fw-bold">Completed</p>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card glass p-4 text-center card-lift">
+                        <div class="stat-icon mb-3 mx-auto bg-purple"><i class="fas fa-layer-group"></i></div>
+                        <h3 id="totalPlaylists" class="fs-xl font-display mb-1">0</h3>
+                        <p class="fs-xs text-muted text-uppercase fw-bold">Collections</p>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card glass p-4 text-center card-lift border-primary border-opacity-25">
+                        <div class="stat-icon mb-3 mx-auto bg-orange"><i class="fas fa-fire"></i></div>
+                        <h3 id="currentStreak" class="fs-xl font-display mb-1">0</h3>
+                        <p class="fs-xs text-muted text-uppercase fw-bold">Day Streak</p>
+                    </div>
+                </div>
             </div>
 
-            <!-- Stats Cards -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon bg-blue"><i class="fas fa-video"></i></div>
-                    <div class="stat-info">
-                        <h3 id="totalVideos">0</h3>
-                        <p>Videos Added</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon bg-green"><i class="fas fa-check-circle"></i></div>
-                    <div class="stat-info">
-                        <h3 id="videosWatched">0</h3>
-                        <p>Completed</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon bg-purple"><i class="fas fa-list"></i></div>
-                    <div class="stat-info">
-                        <h3 id="totalPlaylists">0</h3>
-                        <p>Playlists</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon bg-orange"><i class="fas fa-fire"></i></div>
-                    <div class="stat-info">
-                        <h3 id="currentStreak">0</h3>
-                        <p>Day Streak</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts Row -->
-            <div class="row g-4 mt-2">
+            <!-- Charts and Activity -->
+            <div class="row g-4">
                 <div class="col-lg-8">
-                    <div class="chart-card">
-                        <h3>Weekly Activity</h3>
-                        <canvas id="activityChart"></canvas>
+                    <div class="glass p-4 mb-4">
+                        <h3 class="font-display fs-lg mb-4">Study Trends</h3>
+                        <canvas id="activityChart" height="250"></canvas>
+                    </div>
+                    <div class="glass p-4">
+                        <h3 class="font-display fs-lg mb-4">Recent Milestones</h3>
+                        <div id="activityLog" class="activity-log">
+                            <!-- Activities injected here -->
+                        </div>
                     </div>
                 </div>
                 <div class="col-lg-4">
-                    <div class="chart-card">
-                        <h3>Completion Rate</h3>
-                        <canvas id="completionChart"></canvas>
+                    <div class="glass p-4 mb-4">
+                        <h3 class="font-display fs-lg mb-4">Course Mastery</h3>
+                        <canvas id="completionChart" height="250"></canvas>
                     </div>
-                </div>
-            </div>
-
-            <!-- Goals & Badges -->
-            <div class="row g-4 mt-2">
-                <div class="col-lg-6">
-                    <div class="chart-card">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h3>Learning Goals</h3>
-                            <button id="addGoalBtn" class="btn btn-primary btn-sm">
-                                <i class="fas fa-plus"></i> Add Goal
-                            </button>
+                    <div class="glass p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h3 class="font-display fs-lg m-0">Unlocked Badges</h3>
+                            <a href="#" class="fs-xs text-primary">View All</a>
                         </div>
-                        <div id="goalsList"></div>
+                        <div id="badgesList" class="badges-grid d-flex flex-wrap gap-3">
+                            <!-- Badges injected here -->
+                        </div>
                     </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="chart-card">
-                        <h3>Achievements</h3>
-                        <div id="badgesList" class="badges-grid"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="chart-card mt-4">
-                <h3>Recent Activity</h3>
-                <div id="activityLog" class="activity-log"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Goal Modal -->
-    <div class="modal fade" id="goalModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Set a Learning Goal</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="text" id="goalTitle" class="form-control mb-3" placeholder="Goal title">
-                    <input type="number" id="goalTarget" class="form-control mb-3" placeholder="Target (videos)">
-                    <input type="date" id="goalDeadline" class="form-control">
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline" data-bs-dismiss="modal">Cancel</button>
-                    <button id="saveGoalBtn" class="btn btn-primary">Save</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/dashboard.js"></script>
+    <script type="module" src="js/pages/dashboard.js"></script>
 </body>
 </html>
