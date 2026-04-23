@@ -1,9 +1,9 @@
 // ============================================
 // Playlist Page Logic
 // ============================================
-import { Storage } from '../modules/storage.js';
+import { Playlists, Videos } from '../modules/storage.js';
 import { createVideoCard } from '../components/video-card.js';
-import { showToast } from '../modules/ui.js';
+import { toast } from '../modules/ui.js';
 import { animateIn, staggerIn } from '../modules/animations.js';
 
 let currentPlaylistId = null;
@@ -12,10 +12,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     animateIn('.playlist-sidebar');
     await loadPlaylists();
     setupEventListeners();
+
+    window.addEventListener('playlists:synced', () => loadPlaylists());
+    window.addEventListener('playlists:changed', () => loadPlaylists());
 });
 
 async function loadPlaylists() {
-    const playlists = await Storage.getPlaylists();
+    const playlists = await Playlists.list();
     const container = document.getElementById('playlistList');
     
     if (playlists.length === 0) {
@@ -26,7 +29,7 @@ async function loadPlaylists() {
     container.innerHTML = playlists.map(p => `
         <div class="playlist-item glass mb-2 p-3 card-lift ${currentPlaylistId === p.id ? 'active' : ''}" data-id="${p.id}">
             <h4 class="fs-sm font-display mb-1">${p.name}</h4>
-            <p class="fs-xs text-muted mb-0">${p.videos.length} videos</p>
+            <p class="fs-xs text-muted mb-0">${(p.video_ids || []).length} videos</p>
         </div>
     `).join('');
 
@@ -40,13 +43,14 @@ async function loadPlaylists() {
 }
 
 async function loadPlaylistVideos(playlistId) {
-    const playlists = await Storage.getPlaylists();
+    const playlists = await Playlists.list();
     const playlist = playlists.find(p => p.id === playlistId);
     if (!playlist) return;
 
     const contentArea = document.getElementById('playlistContent');
-    const allVideos = await Storage.getVideos();
-    const playlistVideos = allVideos.filter(v => playlist.videos.includes(v.id));
+    const allVideos = await Videos.list();
+    const video_ids = playlist.video_ids || [];
+    const playlistVideos = allVideos.filter(v => video_ids.includes(v.id));
 
     contentArea.innerHTML = `
         <div class="playlist-header mb-4" data-aos="fade-down">
@@ -82,11 +86,14 @@ function setupEventListeners() {
         
         if (!name) return;
 
-        await Storage.createPlaylist(name, desc);
-        document.getElementById('playlistNameInput').value = '';
-        document.getElementById('playlistDescInput').value = '';
-        modal.hide();
-        await loadPlaylists();
-        showToast('Playlist created!', 'success');
+        try {
+            await Playlists.create({ name, description: desc });
+            document.getElementById('playlistNameInput').value = '';
+            document.getElementById('playlistDescInput').value = '';
+            modal.hide();
+            toast('Playlist created!', 'success');
+        } catch (error) {
+            toast(error.message, 'error');
+        }
     });
 }

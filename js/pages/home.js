@@ -1,23 +1,29 @@
 // ============================================
 // Home Page Logic
 // ============================================
-import { Storage } from '../modules/storage.js';
+import { Videos } from '../modules/storage.js';
 import { createVideoCard } from '../components/video-card.js';
-import { showToast } from '../modules/ui.js';
+import { toast, renderSkeletonGrid } from '../modules/ui.js';
 import { animateIn, staggerIn } from '../modules/animations.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Initial animations
     animateIn('.hero-content');
     
+    const grid = document.getElementById('videoGrid');
+    renderSkeletonGrid(grid, 6);
+    
     await loadVideos();
     setupAddVideo();
     setupFilters();
-    setupSearch();
+    
+    // Listen for cloud syncs
+    window.addEventListener('videos:synced', () => loadVideos());
+    window.addEventListener('videos:changed', () => loadVideos());
 });
 
 async function loadVideos(filter = 'all') {
-    const videos = await Storage.getVideos();
+    const videos = await Videos.list();
     const grid = document.getElementById('videoGrid');
     const emptyState = document.getElementById('emptyState');
 
@@ -53,26 +59,22 @@ function setupAddVideo() {
         e.preventDefault();
         const url = document.getElementById('videoUrl').value;
         const title = document.getElementById('videoTitle').value;
-        const tags = document.getElementById('videoTags').value;
+        const tags = document.getElementById('videoTags').value.split(',').map(t => t.trim());
         const description = document.getElementById('videoDescription').value;
 
-        const youtubeId = Storage.extractYouTubeID(url);
-        if (!youtubeId) {
-            showToast('Invalid YouTube URL', 'error');
-            return;
+        try {
+            await Videos.add({
+                url,
+                title,
+                tags,
+                description
+            });
+
+            form.reset();
+            toast('Video added to your library!', 'success');
+        } catch (error) {
+            toast(error.message, 'error');
         }
-
-        await Storage.addVideo({
-            url,
-            youtubeId,
-            title,
-            tags,
-            description
-        });
-
-        form.reset();
-        await loadVideos();
-        showToast('Video added to your library!', 'success');
     });
 }
 
@@ -84,9 +86,4 @@ function setupFilters() {
             await loadVideos(btn.dataset.filter);
         });
     });
-}
-
-function setupSearch() {
-    // Search implementation...
-    // (Can be improved with a dedicated search module later)
 }

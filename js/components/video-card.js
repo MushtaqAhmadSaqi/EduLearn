@@ -8,8 +8,15 @@
  * @returns {string} HTML string
  */
 export function createVideoCard(video) {
-    const thumbnail = `https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg`;
-    const tags = video.tags ? video.tags.split(',').slice(0, 3).map(t => `<span class="tag">${t.trim()}</span>`).join('') : '';
+    const youtubeId = video.youtube_id || video.youtubeId;
+    const thumbnail = `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`;
+    
+    let tagsHtml = '';
+    if (video.tags) {
+        const tags = Array.isArray(video.tags) ? video.tags : video.tags.split(',');
+        tagsHtml = tags.slice(0, 3).map(t => `<span class="tag">${t.trim()}</span>`).join('');
+    }
+    
     const progress = video.progress || 0;
     
     return `
@@ -24,9 +31,9 @@ export function createVideoCard(video) {
             </div>
             <div class="video-info-card glass" style="border-top: none; border-radius: 0 0 var(--radius) var(--radius);">
                 <h3 class="fs-sm font-display">${video.title}</h3>
-                <div class="tags">${tags}</div>
+                <div class="tags">${tagsHtml}</div>
                 <div class="video-meta-info" style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
-                    <span><i class="far fa-clock"></i> ${new Date(video.addedAt).toLocaleDateString()}</span>
+                    <span><i class="far fa-clock"></i> ${new Date(video.created_at || video.addedAt).toLocaleDateString()}</span>
                     <span>${progress}% Complete</span>
                 </div>
             </div>
