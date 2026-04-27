@@ -1,71 +1,110 @@
 // ============================================
-// Animations - GSAP used sparingly for wow moments
-// CSS handles everything else for performance
+// Lightweight Animations
+// No heavy dependencies. Respects reduced motion.
 // ============================================
 
-let gsapLoaded = null;
-
-// Lazy-load GSAP only when needed
-export async function loadGSAP() {
-  if (gsapLoaded) return gsapLoaded;
-  gsapLoaded = import('https://esm.sh/gsap@3.12.5');
-  return gsapLoaded;
+export function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-// Check if user prefers reduced motion
-export const prefersReducedMotion = () =>
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+export function animateNumber(element, target, duration = 900) {
+  if (!element) return;
 
-// ===== HERO ENTRANCE =====
-export async function animateHeroEntrance() {
-  if (prefersReducedMotion()) return;
-  const { gsap } = await loadGSAP();
-  gsap.from('[data-anim="hero"]', {
-    y: 30,
-    opacity: 0,
-    duration: 0.8,
-    stagger: 0.1,
-    ease: 'power3.out'
-  });
-}
+  const end = Number(target || 0);
 
-// ===== CARD STAGGER =====
-export async function animateCardStagger(selector) {
-  if (prefersReducedMotion()) return;
-  const cards = document.querySelectorAll(selector);
-  if (cards.length === 0 || cards.length > 30) return; // skip on large lists
-  const { gsap } = await loadGSAP();
-  gsap.from(cards, {
-    y: 20,
-    opacity: 0,
-    duration: 0.4,
-    stagger: 0.05,
-    ease: 'power2.out',
-    clearProps: 'all'
-  });
-}
-
-// ===== BADGE UNLOCK (wow moment) =====
-export async function celebrateBadge(element) {
-  if (prefersReducedMotion()) return;
-  const { gsap } = await loadGSAP();
-  gsap.timeline()
-    .to(element, { scale: 1.2, duration: 0.2, ease: 'back.out(2)' })
-    .to(element, { scale: 1, duration: 0.3, ease: 'power2.out' });
-}
-
-// ===== NUMBER COUNTER =====
-export async function animateNumber(element, target, duration = 1) {
   if (prefersReducedMotion()) {
-    element.textContent = target;
+    element.textContent = String(end);
     return;
   }
-  const { gsap } = await loadGSAP();
-  const obj = { val: 0 };
-  gsap.to(obj, {
-    val: target,
-    duration,
-    ease: 'power2.out',
-    onUpdate: () => { element.textContent = Math.round(obj.val); }
+
+  const start = Number(element.textContent.replace(/\D/g, '') || 0);
+  const startedAt = performance.now();
+
+  function frame(now) {
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const value = Math.round(start + (end - start) * eased);
+
+    element.textContent = String(value);
+
+    if (progress < 1) {
+      requestAnimationFrame(frame);
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
+export function animateHeroEntrance() {
+  if (prefersReducedMotion()) return;
+
+  const items = document.querySelectorAll('[data-anim="hero"]');
+
+  items.forEach((item, index) => {
+    item.style.opacity = '0';
+    item.style.transform = 'translateY(18px)';
+
+    window.setTimeout(() => {
+      item.style.transition = 'opacity 500ms ease, transform 500ms ease';
+      item.style.opacity = '1';
+      item.style.transform = 'translateY(0)';
+    }, index * 80);
   });
+}
+
+export function animateCardStagger(selector = '[data-card]') {
+  if (prefersReducedMotion()) return;
+
+  const cards = [...document.querySelectorAll(selector)].slice(0, 30);
+
+  cards.forEach((card, index) => {
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(14px)';
+
+    window.setTimeout(() => {
+      card.style.transition = 'opacity 420ms ease, transform 420ms ease';
+      card.style.opacity = '1';
+      card.style.transform = 'translateY(0)';
+    }, index * 35);
+  });
+}
+
+export function celebrateBadge(label = 'Badge unlocked') {
+  if (prefersReducedMotion()) return;
+
+  const burst = document.createElement('div');
+
+  burst.className =
+    'pointer-events-none fixed left-1/2 top-20 z-[9999] -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500 px-5 py-3 text-sm font-bold text-white shadow-floating';
+
+  burst.textContent = `🏆 ${label}`;
+
+  document.body.appendChild(burst);
+
+  burst.animate(
+    [
+      {
+        transform: 'translate(-50%, -12px) scale(.96)',
+        opacity: 0
+      },
+      {
+        transform: 'translate(-50%, 0) scale(1)',
+        opacity: 1
+      },
+      {
+        transform: 'translate(-50%, -8px) scale(1)',
+        opacity: 1
+      },
+      {
+        transform: 'translate(-50%, -24px) scale(.98)',
+        opacity: 0
+      }
+    ],
+    {
+      duration: 2200,
+      easing: 'cubic-bezier(.2,.8,.2,1)'
+    }
+  );
+
+  window.setTimeout(() => burst.remove(), 2300);
 }

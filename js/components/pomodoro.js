@@ -1,6 +1,6 @@
 // ============================================
-// Pomodoro Timer - Uses Page Visibility API
-// Saves state to localStorage (survives refresh)
+// Pomodoro Timer Component
+// Persists state and handles hidden tabs accurately.
 // ============================================
 
 const STORAGE_KEY = 'edulearn:pomodoro';
@@ -8,112 +8,152 @@ const WORK_DURATION = 25 * 60;
 const BREAK_DURATION = 5 * 60;
 
 export class Pomodoro {
-  constructor({ displayEl, triggerEl, onPhaseChange }) {
+  constructor({ displayEl, triggerEl, onPhaseChange = () => {} } = {}) {
     this.displayEl = displayEl;
     this.triggerEl = triggerEl;
-    this.onPhaseChange = onPhaseChange || (() => {});
+    this.onPhaseChange = onPhaseChange;
 
-    const saved = this._load();
-    this.remaining = saved?.remaining ?? WORK_DURATION;
-    this.isBreak = saved?.isBreak ?? false;
+    const saved = this.load();
+
+    this.remaining = saved.remaining ?? WORK_DURATION;
+    this.isBreak = saved.isBreak ?? false;
     this.isRunning = false;
-    this.tickInterval = null;
     this.lastTick = null;
+    this.interval = null;
 
     this.render();
+
     this.triggerEl?.addEventListener('click', () => this.toggle());
 
-    // Resume accurate countdown when tab becomes visible again
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && this.isRunning && this.lastTick) {
         const elapsed = Math.floor((Date.now() - this.lastTick) / 1000);
+
         this.remaining = Math.max(0, this.remaining - elapsed);
         this.lastTick = Date.now();
+
+        this.handleCompletionIfNeeded();
         this.render();
+        this.save();
       }
     });
   }
 
+  load() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch {
+      return {};
+    }
+  }
+
+  save() {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          remaining: this.remaining,
+          isBreak: this.isBreak
+        })
+      );
+    } catch {}
+  }
+
   toggle() {
-    this.isRunning ? this.pause() : this.start();
+    if (this.isRunning) {
+      this.pause();
+    } else {
+      this.start();
+    }
   }
 
   start() {
     this.isRunning = true;
     this.lastTick = Date.now();
-    this.triggerEl.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-2', 'dark:ring-offset-slate-900');
-    this.tickInterval = setInterval(() => this._tick(), 1000);
+
+    this.triggerEl?.classList.add(
+      'ring-2',
+      'ring-indigo-500',
+      'ring-offset-2',
+      'dark:ring-offset-slate-950'
+    );
+
+    this.interval = window.setInterval(() => this.tick(), 1000);
+    this.render();
   }
 
   pause() {
     this.isRunning = false;
-    this.triggerEl.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2', 'dark:ring-offset-slate-900');
-    clearInterval(this.tickInterval);
-    this._save();
-  }
+    this.lastTick = null;
 
-  _tick() {
-    this.remaining--;
-    this.lastTick = Date.now();
+    window.clearInterval(this.interval);
+
+    this.triggerEl?.classList.remove(
+      'ring-2',
+      'ring-indigo-500',
+      'ring-offset-2',
+      'dark:ring-offset-slate-950'
+    );
+
     this.render();
-    if (this.remaining <= 0) this._phaseComplete();
+    this.save();
   }
 
-  _phaseComplete() {
+  reset() {
     this.pause();
+
+    this.isBreak = false;
+    this.remaining = WORK_DURATION;
+
+    this.render();
+    this.save();
+  }
+
+  tick() {
+    this.remaining = Math.max(0, this.remaining - 1);
+
+    this.handleCompletionIfNeeded();
+    this.render();
+    this.save();
+  }
+
+  handleCompletionIfNeeded() {
+    if (this.remaining > 0) return;
+
     this.isBreak = !this.isBreak;
     this.remaining = this.isBreak ? BREAK_DURATION : WORK_DURATION;
 
-    const message = this.isBreak
-      ? 'Work session complete! Take a 5-minute break.'
-      : 'Break over! Time to focus.';
+    this.onPhaseChange(this.isBreak ? 'break' : 'work');
 
-    this._notify(message);
-    this.onPhaseChange({ isBreak: this.isBreak, message });
-    this.render();
-  }
-
-  _notify(message) {
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('EduLearn', { body: message, icon: '/favicon.ico' });
+      new Notification(this.isBreak ? 'Time for a break!' : 'Back to studying!', {
+        body: this.isBreak
+          ? 'Take five minutes to rest your eyes.'
+          : 'Your break is done. Let’s keep learning.'
+      });
     }
-    // Audio ping
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.5);
-    } catch {}
   }
 
   render() {
-    const m = Math.floor(this.remaining / 60);
-    const s = this.remaining % 60;
-    this.displayEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
-    this._save();
-  }
+    const minutes = Math.floor(this.remaining / 60);
+    const seconds = this.remaining % 60;
+    const label = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-  _save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      remaining: this.remaining,
-      isBreak: this.isBreak
-    }));
-  }
+    if (this.displayEl) {
+      this.displayEl.textContent = label;
+    }
 
-  _load() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
-  }
-}
+    if (this.triggerEl) {
+      this.triggerEl.title = this.isBreak
+        ? `Break timer: ${label}`
+        : `Focus timer: ${label}`;
 
-// Request notification permission on first load
-if ('Notification' in window && Notification.permission === 'default') {
-  // Don't request immediately — wait for user interaction
-  document.addEventListener('click', () => {
-    if (Notification.permission === 'default') Notification.requestPermission();
-  }, { once: true });
+      this.triggerEl.setAttribute(
+        'aria-label',
+        this.isRunning
+          ? `Pause ${this.isBreak ? 'break' : 'focus'} timer`
+          : `Start ${this.isBreak ? 'break' : 'focus'} timer`
+      );
+    }
+  }
 }

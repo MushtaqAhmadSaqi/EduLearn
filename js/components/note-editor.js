@@ -1,12 +1,21 @@
 // ============================================
-// Note Editor Component
-// Timestamped notes with optimistic UI
+// Timestamped Note Editor
+// Optimistic local-first notes with keyboard support.
 // ============================================
+
 import { Notes, formatTime } from '../modules/storage.js';
-import { toast } from '../modules/ui.js';
+import { escapeHTML, toast } from '../modules/ui.js';
 
 export class NoteEditor {
-  constructor({ videoId, getCurrentTime, seekTo, listEl, inputEl, saveBtnEl, timeDisplayEl }) {
+  constructor({
+    videoId,
+    getCurrentTime,
+    seekTo,
+    listEl,
+    inputEl,
+    saveBtnEl,
+    timeDisplayEl
+  }) {
     this.videoId = videoId;
     this.getCurrentTime = getCurrentTime;
     this.seekTo = seekTo;
@@ -16,37 +25,55 @@ export class NoteEditor {
     this.timeDisplayEl = timeDisplayEl;
     this.notes = [];
 
-    this._bindEvents();
-    this._startTimeDisplayLoop();
-    this.load();
-
-    // Autosave draft to localStorage
     this.draftKey = `edulearn:note-draft:${videoId}`;
+
+    this.init();
+  }
+
+  init() {
+    if (!this.listEl || !this.inputEl || !this.saveBtnEl) return;
+
     this.inputEl.value = localStorage.getItem(this.draftKey) || '';
+
+    this.saveBtnEl.addEventListener('click', () => this.save());
+
     this.inputEl.addEventListener('input', () => {
       localStorage.setItem(this.draftKey, this.inputEl.value);
     });
-  }
 
-  _bindEvents() {
-    this.saveBtnEl.addEventListener('click', () => this.save());
-    this.inputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
+    this.inputEl.addEventListener('keydown', (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault();
         this.save();
       }
     });
-    window.addEventListener('notes:changed', (e) => {
-      if (e.detail === this.videoId) this.load();
+
+    window.addEventListener('notes:changed', (event) => {
+      if (event.detail === this.videoId) {
+        this.load();
+      }
     });
+
+    window.setInterval(() => this.updateCurrentTimeChip(), 500);
+
+    this.load();
+    this.updateCurrentTimeChip();
   }
 
-  _startTimeDisplayLoop() {
-    // Update "current timestamp" chip every 500ms
-    setInterval(() => {
-      const t = this.getCurrentTime();
-      this.timeDisplayEl.textContent = formatTime(t);
-    }, 500);
+  updateCurrentTimeChip() {
+    if (!this.timeDisplayEl) return;
+
+    const time = this.safeCurrentTime();
+
+    this.timeDisplayEl.textContent = formatTime(time);
+  }
+
+  safeCurrentTime() {
+    try {
+      return Math.max(0, Number(this.getCurrentTime?.() || 0));
+    } catch {
+      return 0;
+    }
   }
 
   async load() {
@@ -55,86 +82,89 @@ export class NoteEditor {
   }
 
   render() {
-    if (this.notes.length === 0) {
+    if (!this.listEl) return;
+
+    if (!this.notes.length) {
       this.listEl.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-10 px-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
-          <div class="w-16 h-16 mb-3 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-pink-500/10 flex items-center justify-center text-3xl">📝</div>
-          <p class="font-medium mb-1">No notes yet</p>
-          <p class="text-sm text-slate-500 dark:text-slate-400 max-w-xs">
-            Start typing above at any moment — notes are saved with the exact timestamp.
+        <div class="rounded-3xl border border-dashed border-slate-300 bg-white/70 p-8 text-center dark:border-slate-700 dark:bg-slate-900/50">
+          <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-2xl">📝</div>
+          <h3 class="font-semibold text-slate-950 dark:text-white">No notes yet</h3>
+          <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Capture ideas while watching. Use Ctrl/⌘ + Enter to save quickly.
           </p>
         </div>
       `;
       return;
     }
 
-    this.listEl.innerHTML = this.notes.map(n => this._noteHTML(n)).join('');
+    this.listEl.innerHTML = this.notes
+      .map(
+        (note) => `
+          <article class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-subtle transition hover:-translate-y-0.5 hover:shadow-soft dark:border-slate-800 dark:bg-slate-900">
+            <div class="mb-2 flex items-center justify-between gap-3">
+              <button
+                data-seek-note="${note.timestamp_sec}"
+                class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-600 transition hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900"
+              >
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+                </svg>
+                ${formatTime(note.timestamp_sec)}
+              </button>
 
-    // Attach handlers
-    this.listEl.querySelectorAll('[data-seek]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.seekTo(parseFloat(btn.dataset.seek));
+              <button
+                data-delete-note="${note.id}"
+                class="rounded-lg px-2 py-1 text-xs font-medium text-slate-400 opacity-100 transition hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 sm:opacity-0 sm:group-hover:opacity-100 dark:hover:bg-rose-950/50"
+              >
+                Delete
+              </button>
+            </div>
+
+            <p class="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-300">${escapeHTML(note.content)}</p>
+          </article>
+        `
+      )
+      .join('');
+
+    this.listEl.querySelectorAll('[data-seek-note]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const time = Number(button.dataset.seekNote || 0);
+
+        this.seekTo?.(time);
       });
     });
-    this.listEl.querySelectorAll('[data-delete]').forEach(btn => {
-      btn.addEventListener('click', () => this.delete(btn.dataset.delete));
-    });
-  }
 
-  _noteHTML(note) {
-    return `
-      <div class="note-enter group flex gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-transparent hover:border-indigo-300 dark:hover:border-indigo-700 transition" data-note-id="${note.id}">
-        <button data-seek="${note.timestamp_sec}"
-          class="shrink-0 h-fit px-2.5 py-1 rounded-lg bg-indigo-500 text-white text-xs font-mono font-semibold hover:bg-indigo-600 transition"
-          aria-label="Seek to ${formatTime(note.timestamp_sec)}">
-          ${formatTime(note.timestamp_sec)}
-        </button>
-        <p class="flex-1 text-sm leading-relaxed text-slate-700 dark:text-slate-300 min-w-0 break-words">${escape(note.content)}</p>
-        <button data-delete="${note.id}"
-          class="shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 text-slate-400 hover:text-red-500 transition flex items-center justify-center"
-          aria-label="Delete note">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M10 4a1 1 0 011-1h2a1 1 0 011 1v3H9V4z"/></svg>
-        </button>
-      </div>
-    `;
+    this.listEl.querySelectorAll('[data-delete-note]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        await Notes.remove(this.videoId, button.dataset.deleteNote);
+        toast('Note deleted.', 'success');
+      });
+    });
   }
 
   async save() {
     const content = this.inputEl.value.trim();
-    if (!content) return;
 
-    const timestamp = this.getCurrentTime();
-    this.inputEl.value = '';
-    localStorage.removeItem(this.draftKey);
+    if (!content) {
+      toast('Write a note before saving.', 'warning');
+      this.inputEl.focus();
+      return;
+    }
 
     try {
-      await Notes.add(this.videoId, timestamp, content);
-      // List reloads via event listener
-    } catch (err) {
-      toast('Failed to save note', 'error');
-      this.inputEl.value = content;
+      this.saveBtnEl.disabled = true;
+
+      await Notes.add(this.videoId, this.safeCurrentTime(), content);
+
+      this.inputEl.value = '';
+      localStorage.removeItem(this.draftKey);
+
+      toast('Note saved.', 'success');
+    } catch (error) {
+      toast(error.message || 'Could not save note.', 'error');
+    } finally {
+      this.saveBtnEl.disabled = false;
+      this.inputEl.focus();
     }
   }
-
-  async delete(noteId) {
-    // Optimistic remove
-    const el = this.listEl.querySelector(`[data-note-id="${noteId}"]`);
-    if (el) {
-      el.style.transition = 'opacity 0.2s, transform 0.2s';
-      el.style.opacity = '0';
-      el.style.transform = 'translateX(20px)';
-      setTimeout(() => el.remove(), 200);
-    }
-    await Notes.remove(this.videoId, noteId);
-  }
-
-  focusInput() {
-    this.inputEl.focus();
-  }
-}
-
-function escape(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
 }
