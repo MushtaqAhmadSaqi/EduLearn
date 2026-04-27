@@ -1,0 +1,10 @@
+{
+  "name": "edulearn-polished",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Polished local-first EduLearn static web app with optional Supabase backend.",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "serve": "npx serve ."
+  }
+}
