@@ -362,6 +362,7 @@ function showCreateModal() {
         description: fd.get('description')
       });
       currentPlaylistId = pl.id;
+      await loadPlaylists(); // Re-render to select the newly created playlist
       close();
       toast('Playlist created!', 'success');
     } catch (err) {

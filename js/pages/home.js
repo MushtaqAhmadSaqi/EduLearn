@@ -126,13 +126,8 @@ function initFilters() {
   });
 }
 
-// ===== ADD VIDEO — USES EVENT DELEGATION (WORKS ALWAYS) =====
 function initAddVideoBtn() {
-  // Direct binding for fixed button
-  const directBtn = document.getElementById('addVideoBtn');
-  if (directBtn) directBtn.addEventListener('click', showAddVideoModal);
-
-  // Event delegation as a safety net
+  // Event delegation handles all add video buttons (both fixed and empty states)
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action="add-video"]');
     if (btn) {

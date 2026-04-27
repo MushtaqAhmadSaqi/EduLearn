@@ -336,8 +336,8 @@ async function downloadData() {
 // ===== KEYBOARD SHORTCUTS =====
 function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
-    // Skip if typing in an input
-    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    // Skip if typing in an input or if a button is focused
+    if (['INPUT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName) || e.target.isContentEditable) return;
     if (!isPlayerReady) return;
 
     switch (e.key.toLowerCase()) {
