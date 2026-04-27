@@ -11,6 +11,7 @@ let currentPlaylistId = null;
 
 (async function init() {
   initTheme();
+  initMobileMenu();
   initUserMenu();
   const user = await requireAuth('auth.html');
   if (!user) return;
@@ -22,6 +23,12 @@ let currentPlaylistId = null;
   window.addEventListener('playlists:changed', loadPlaylists);
   window.addEventListener('playlists:synced', loadPlaylists);
 })();
+
+function initMobileMenu() {
+  const btn = document.getElementById('mobileMenuBtn');
+  const menu = document.getElementById('mobileMenu');
+  if (btn && menu) btn.addEventListener('click', () => menu.classList.toggle('hidden'));
+}
 
 // ===== IMPORT SHARED =====
 async function checkSharedImport() {

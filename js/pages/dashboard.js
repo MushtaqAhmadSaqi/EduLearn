@@ -12,6 +12,7 @@ let videos = [], playlists = [], activityLog = [], goals = [];
 // ===== INIT =====
 (async function init() {
   initTheme();
+  initMobileMenu();
   const user = await requireAuth('auth.html');
   if (!user) return;
   initUserMenu();
@@ -29,6 +30,12 @@ let videos = [], playlists = [], activityLog = [], goals = [];
 
   document.getElementById('addGoalBtn').addEventListener('click', showGoalModal);
 })();
+
+function initMobileMenu() {
+  const btn = document.getElementById('mobileMenuBtn');
+  const menu = document.getElementById('mobileMenu');
+  if (btn && menu) btn.addEventListener('click', () => menu.classList.toggle('hidden'));
+}
 
 async function loadData() {
   [videos, playlists, activityLog, goals] = await Promise.all([
