@@ -1,110 +1,167 @@
 // ============================================
-// Auth Module
+// Auth Page Logic
+// Works with Supabase when configured.
+// Otherwise, lets users continue in offline mode.
 // ============================================
-import { supabase } from '../config/supabase.js';
-import { toast, initTheme } from './ui.js';
+
+import { supabase, isCloudEnabled } from '../config/supabase.js';
+import { initTheme, toast, setButtonLoading } from './ui.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   initTabs();
-  initSigninForm();
-  initSignupForm();
+  initForms();
+  initOfflineModeNotice();
 
-  // Auto-redirect if already logged in
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) window.location.href = 'index.html';
+  if (isCloudEnabled) {
+    const {
+      data: { session }
+    } = await supabase.auth.getSession();
+
+    if (session) {
+      window.location.href = 'index.html';
+    }
+  }
 });
 
-// ===== TABS =====
 function initTabs() {
-  const tabs = document.querySelectorAll('.tab-btn');
-  const signin = document.getElementById('signinForm');
-  const signup = document.getElementById('signupForm');
+  const tabs = document.querySelectorAll('[data-tab]');
+  const forms = {
+    signin: document.getElementById('signinForm'),
+    signup: document.getElementById('signupForm')
+  };
 
-  tabs.forEach(tab => {
+  tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
-      tabs.forEach(t => {
-        t.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-        t.classList.add('text-slate-500');
-      });
-      tab.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-      tab.classList.remove('text-slate-500');
+      const target = tab.dataset.tab;
 
-      if (tab.dataset.tab === 'signin') {
-        signin.classList.remove('hidden');
-        signup.classList.add('hidden');
-      } else {
-        signup.classList.remove('hidden');
-        signin.classList.add('hidden');
-      }
+      tabs.forEach((button) => {
+        button.classList.remove('bg-white', 'text-slate-950', 'shadow-soft', 'dark:bg-slate-800', 'dark:text-white');
+        button.classList.add('text-slate-500', 'dark:text-slate-400');
+        button.setAttribute('aria-selected', 'false');
+      });
+
+      tab.classList.add('bg-white', 'text-slate-950', 'shadow-soft', 'dark:bg-slate-800', 'dark:text-white');
+      tab.classList.remove('text-slate-500', 'dark:text-slate-400');
+      tab.setAttribute('aria-selected', 'true');
+
+      Object.entries(forms).forEach(([name, form]) => {
+        form?.classList.toggle('hidden', name !== target);
+      });
     });
   });
 }
 
-// ===== SIGN IN =====
-function initSigninForm() {
-  const form = document.getElementById('signinForm');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = form.querySelector('button[type=submit]');
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="inline-block animate-spin">◌</span> Signing in...';
+function initOfflineModeNotice() {
+  const notice = document.getElementById('offlineNotice');
+  const continueButton = document.getElementById('continueOfflineBtn');
 
-    const fd = new FormData(form);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: fd.get('email'),
-      password: fd.get('password')
+  if (!notice || !continueButton) return;
+
+  if (isCloudEnabled) {
+    notice.classList.add('hidden');
+    return;
+  }
+
+  notice.classList.remove('hidden');
+
+  continueButton.addEventListener('click', () => {
+    toast('Continuing in offline mode.', 'success');
+    window.location.href = 'index.html';
+  });
+}
+
+function initForms() {
+  const signinForm = document.getElementById('signinForm');
+  const signupForm = document.getElementById('signupForm');
+
+  signinForm?.addEventListener('submit', handleSignin);
+  signupForm?.addEventListener('submit', handleSignup);
+}
+
+async function handleSignin(event) {
+  event.preventDefault();
+
+  if (!isCloudEnabled) {
+    toast('Cloud auth is not configured. Continuing offline.', 'info');
+    window.location.href = 'index.html';
+    return;
+  }
+
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const email = form.email.value.trim();
+  const password = form.password.value;
+
+  if (!email || !password) {
+    toast('Please enter your email and password.', 'error');
+    return;
+  }
+
+  try {
+    setButtonLoading(button, true, 'Signing in...');
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
     });
 
-    if (error) {
-      toast(error.message, 'error');
-      btn.disabled = false;
-      btn.textContent = originalText;
-      return;
-    }
+    if (error) throw error;
 
     toast('Welcome back!', 'success');
-    setTimeout(() => window.location.href = 'index.html', 400);
-  });
+    window.location.href = 'index.html';
+  } catch (error) {
+    toast(error.message || 'Could not sign in.', 'error');
+  } finally {
+    setButtonLoading(button, false);
+  }
 }
 
-// ===== SIGN UP =====
-function initSignupForm() {
-  const form = document.getElementById('signupForm');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = form.querySelector('button[type=submit]');
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="inline-block animate-spin">◌</span> Creating...';
+async function handleSignup(event) {
+  event.preventDefault();
 
-    const fd = new FormData(form);
-    const { data, error } = await supabase.auth.signUp({
-      email: fd.get('email'),
-      password: fd.get('password')
+  if (!isCloudEnabled) {
+    toast('Cloud auth is not configured. Continuing offline.', 'info');
+    window.location.href = 'index.html';
+    return;
+  }
+
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const email = form.email.value.trim();
+  const password = form.password.value;
+  const confirmPassword = form.confirmPassword.value;
+
+  if (!email || !password || !confirmPassword) {
+    toast('Please complete all required fields.', 'error');
+    return;
+  }
+
+  if (password.length < 8) {
+    toast('Password must be at least 8 characters.', 'error');
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    toast('Passwords do not match.', 'error');
+    return;
+  }
+
+  try {
+    setButtonLoading(button, true, 'Creating account...');
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password
     });
 
-    if (error) {
-      toast(error.message, 'error');
-      btn.disabled = false;
-      btn.textContent = originalText;
-      return;
-    }
+    if (error) throw error;
 
-    if (data.user && !data.session) {
-      toast('Check your email to confirm your account', 'success', 5000);
-    } else {
-      toast('Account created!', 'success');
-      setTimeout(() => window.location.href = 'index.html', 400);
-    }
-    btn.disabled = false;
-    btn.textContent = originalText;
-  });
-}
-
-// ===== SIGN OUT (used from other pages) =====
-export async function signOut() {
-  await supabase.auth.signOut();
-  window.location.href = 'auth.html';
+    toast('Account created. Check your email if confirmation is enabled.', 'success');
+    window.location.href = 'index.html';
+  } catch (error) {
+    toast(error.message || 'Could not create account.', 'error');
+  } finally {
+    setButtonLoading(button, false);
+  }
 }
