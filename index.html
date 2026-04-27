@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="EduLearn — Distraction-free learning for students">
+  <meta name="description" content="EduLearn — Distraction-free learning for students. Add YouTube videos, take timestamped notes, and track your progress.">
   <title>EduLearn — Focus. Learn. Grow.</title>
 
-  <!-- Tailwind CDN (for dev); replace with compiled build for production -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -31,14 +30,23 @@
 
   <!-- ===== NAV ===== -->
   <nav class="glass fixed top-0 inset-x-0 z-50 border-b border-slate-200/50 dark:border-slate-800/50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-      <a href="index.html" class="flex items-center gap-2 font-display font-bold text-lg">
-        <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-white text-sm">E</span>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <a href="index.html" class="flex items-center gap-2 font-display font-bold text-lg shrink-0">
+        <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-white text-sm shadow-soft">E</span>
         <span class="gradient-text">EduLearn</span>
       </a>
 
+      <!-- Nav Search (desktop) -->
+      <div class="hidden md:flex flex-1 max-w-xs">
+        <div class="relative w-full">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input id="navSearchInput" type="text" placeholder="Search your library..."
+            class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-indigo-400 focus:bg-white dark:focus:bg-slate-900 outline-none text-sm transition">
+        </div>
+      </div>
+
       <div class="hidden md:flex items-center gap-1">
-        <a href="index.html" class="px-4 py-2 rounded-lg text-sm font-medium text-indigo-600 dark:text-indigo-400">Home</a>
+        <a href="index.html" class="px-4 py-2 rounded-lg text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50">Home</a>
         <a href="playlist.html" class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">Playlists</a>
         <a href="dashboard.html" class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">Dashboard</a>
       </div>
@@ -49,16 +57,19 @@
           <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         </button>
         <div id="userMenu"></div>
-
-        <!-- Mobile menu -->
         <button id="mobileMenuBtn" class="md:hidden w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center" aria-label="Menu">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
       </div>
     </div>
 
-    <!-- Mobile menu drawer -->
+    <!-- Mobile menu -->
     <div id="mobileMenu" class="md:hidden hidden border-t border-slate-200/50 dark:border-slate-800/50 px-4 py-3 space-y-1">
+      <div class="relative mb-3">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="mobileSearchInput" type="text" placeholder="Search library..."
+          class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-indigo-400 outline-none text-sm transition">
+      </div>
       <a href="index.html" class="block px-4 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-medium">Home</a>
       <a href="playlist.html" class="block px-4 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">Playlists</a>
       <a href="dashboard.html" class="block px-4 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">Dashboard</a>
@@ -66,54 +77,100 @@
   </nav>
 
   <!-- ===== HERO ===== -->
-  <section class="relative pt-32 pb-16 px-4 sm:px-6 overflow-hidden">
-    <!-- Ambient gradient background -->
-    <div class="absolute inset-0 -z-10">
-      <div class="absolute top-20 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
-      <div class="absolute top-40 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl"></div>
+  <section class="relative pt-28 pb-12 px-4 sm:px-6 overflow-hidden">
+    <!-- Animated ambient blobs -->
+    <div class="absolute inset-0 -z-10 overflow-hidden">
+      <div class="absolute top-10 left-1/4 w-96 h-96 bg-indigo-500/12 rounded-full blur-3xl animate-pulse" style="animation-duration:4s"></div>
+      <div class="absolute top-32 right-1/4 w-80 h-80 bg-pink-500/10 rounded-full blur-3xl animate-pulse" style="animation-duration:6s;animation-delay:1s"></div>
+      <div class="absolute bottom-0 left-1/2 w-64 h-64 bg-violet-500/8 rounded-full blur-3xl animate-pulse" style="animation-duration:5s;animation-delay:2s"></div>
     </div>
 
-    <div class="max-w-5xl mx-auto text-center">
-      <div data-anim="hero" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-sm font-medium mb-6">
-        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-        Now with cloud sync
+    <div class="max-w-4xl mx-auto text-center">
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-sm font-medium mb-6 shadow-soft">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-ring"></span>
+        Turn any YouTube video into a study session
       </div>
 
-      <h1 data-anim="hero" class="font-display font-extrabold leading-[1.05] mb-6" style="font-size: var(--fs-hero)">
+      <h1 class="font-display font-extrabold leading-[1.05] mb-5" style="font-size: var(--fs-hero)">
         Focus. Learn. <span class="gradient-text">Grow.</span>
       </h1>
 
-      <p data-anim="hero" class="text-lg sm:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-10">
-        The distraction-free learning platform that turns any YouTube video into a focused study session.
+      <p class="text-lg sm:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
+        Add YouTube videos, take timestamped notes, track streaks, and build the learning habit that sticks.
       </p>
 
-      <div data-anim="hero" class="flex flex-col sm:flex-row gap-3 justify-center max-w-md sm:max-w-none mx-auto">
-        <button type="button" id="addVideoBtn" data-action="add-video" class="btn-primary inline-flex items-center justify-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      <!-- Hero CTAs -->
+      <div class="flex flex-col sm:flex-row gap-3 justify-center max-w-md sm:max-w-none mx-auto mb-8">
+        <button type="button" id="addVideoBtn" data-action="add-video"
+          class="btn-primary inline-flex items-center justify-center gap-2 text-base">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
           Add Your First Video
         </button>
-        <a href="dashboard.html" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-slate-300 dark:border-slate-700 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+        <a href="dashboard.html" class="btn-secondary inline-flex items-center justify-center gap-2 text-base">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           View Dashboard
         </a>
       </div>
+
+      <!-- Live stat pills -->
+      <div id="heroStats" class="flex flex-wrap items-center justify-center gap-3 text-sm text-slate-500 dark:text-slate-400"></div>
     </div>
+  </section>
+
+  <!-- ===== CONTINUE WATCHING ===== -->
+  <section id="continueSection" class="hidden max-w-7xl mx-auto px-4 sm:px-6 mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-display font-bold text-lg flex items-center gap-2">
+        <span>▶</span> Continue Watching
+      </h2>
+      <span class="text-xs text-slate-400">Pick up where you left off</span>
+    </div>
+    <div id="continueRail" class="continue-rail"></div>
   </section>
 
   <!-- ===== VIDEOS GRID ===== -->
-  <section class="max-w-7xl mx-auto px-4 sm:px-6 pb-24">
-    <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
-      <h2 class="font-display font-bold text-2xl sm:text-3xl">Your Library</h2>
-      <div class="flex gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm">
-        <button data-filter="all" class="filter-btn px-4 py-1.5 rounded-lg font-medium bg-white dark:bg-slate-700 shadow-sm">All</button>
-        <button data-filter="inprogress" class="filter-btn px-4 py-1.5 rounded-lg font-medium text-slate-500">In Progress</button>
-        <button data-filter="completed" class="filter-btn px-4 py-1.5 rounded-lg font-medium text-slate-500">Completed</button>
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 pb-32">
+    <div class="flex items-start justify-between mb-5 flex-wrap gap-4">
+      <div>
+        <h2 class="font-display font-bold text-2xl sm:text-3xl">Your Library</h2>
+        <p id="librarySubtitle" class="text-sm text-slate-500 mt-1"></p>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- Filter tabs -->
+        <div class="flex gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm">
+          <button data-filter="all" class="filter-btn px-4 py-1.5 rounded-lg font-medium bg-white dark:bg-slate-700 shadow-sm">All</button>
+          <button data-filter="inprogress" class="filter-btn px-4 py-1.5 rounded-lg font-medium text-slate-500">In Progress</button>
+          <button data-filter="completed" class="filter-btn px-4 py-1.5 rounded-lg font-medium text-slate-500">Completed</button>
+        </div>
+        <!-- Sort dropdown -->
+        <select id="sortSelect" class="text-sm px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none cursor-pointer">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="progress">Most Progress</option>
+          <option value="az">A → Z</option>
+        </select>
       </div>
     </div>
 
+    <!-- Tag filter chips -->
+    <div id="tagFilters" class="flex flex-wrap gap-2 mb-5 hidden"></div>
+
+    <!-- Video Grid -->
     <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"></div>
   </section>
 
-  <!-- ===== MAIN JS ===== -->
+  <!-- ===== FAB ===== -->
+  <button class="fab" data-action="add-video" aria-label="Add video" title="Add new video">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+  </button>
+
+  <!-- ===== KEYBOARD SHORTCUT HINT ===== -->
+  <div class="fixed bottom-6 left-6 z-40 hidden sm:flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-600">
+    <kbd class="px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 font-mono bg-white dark:bg-slate-800">?</kbd>
+    <span>shortcuts</span>
+  </div>
+
   <script type="module" src="js/pages/home.js"></script>
 </body>
 </html>

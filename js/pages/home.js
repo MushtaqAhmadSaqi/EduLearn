@@ -1,13 +1,15 @@
 // ============================================
-// Homepage — all buttons work reliably
+// Homepage v2 — search, sort, tags, continue rail
 // ============================================
 import { Videos, extractYouTubeId } from '../modules/storage.js';
 import { toast, renderEmptyState, openModal, initTheme } from '../modules/ui.js';
 
 let currentFilter = 'all';
+let currentSort = 'newest';
+let activeTag = null;
+let searchQuery = '';
+let allVideos = [];
 
-// ===== INIT =====
-// Use DOMContentLoaded AND a fallback in case it already fired
 function onReady(fn) {
   if (document.readyState !== 'loading') fn();
   else document.addEventListener('DOMContentLoaded', fn);
@@ -18,33 +20,68 @@ onReady(async () => {
     initTheme();
     initMobileMenu();
     initFilters();
+    initSort();
+    initSearch();
     initAddVideoBtn();
+    initShortcutHelp();
     await loadVideos();
-    console.log('✅ Homepage initialized successfully');
+    console.log('✅ Homepage v2 initialized');
   } catch (err) {
     console.error('❌ Homepage init failed:', err);
     toast('Something went wrong. Check console.', 'error');
   }
 });
 
-// ===== LOAD VIDEOS =====
+// ===== LOAD & RENDER =====
 async function loadVideos() {
-  const videos = await Videos.list();
-  renderVideos(videos);
+  allVideos = await Videos.list();
+  renderHeroStats(allVideos);
+  renderContinueRail(allVideos);
+  renderTagFilters(allVideos);
+  renderVideos();
 }
 
-function renderVideos(videos) {
+function renderVideos() {
   const grid = document.getElementById('videoGrid');
   if (!grid) return;
 
-  const filtered = filterVideos(videos, currentFilter);
+  let videos = [...allVideos];
 
-  if (filtered.length === 0) {
-    if (videos.length === 0) {
+  // Filter by tab
+  if (currentFilter === 'inprogress') videos = videos.filter(v => !v.completed && v.progress > 0);
+  else if (currentFilter === 'completed') videos = videos.filter(v => v.completed);
+
+  // Filter by active tag
+  if (activeTag) videos = videos.filter(v => (v.tags || []).includes(activeTag));
+
+  // Filter by search query
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase();
+    videos = videos.filter(v =>
+      (v.title || '').toLowerCase().includes(q) ||
+      (v.description || '').toLowerCase().includes(q) ||
+      (v.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }
+
+  // Sort
+  if (currentSort === 'oldest') videos.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  else if (currentSort === 'progress') videos.sort((a, b) => (b.progress || 0) - (a.progress || 0));
+  else if (currentSort === 'az') videos.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+  // newest is default (already sorted by unshift)
+
+  // Subtitle
+  const sub = document.getElementById('librarySubtitle');
+  if (sub) sub.textContent = videos.length === allVideos.length
+    ? `${allVideos.length} video${allVideos.length !== 1 ? 's' : ''}`
+    : `${videos.length} of ${allVideos.length} videos`;
+
+  if (videos.length === 0) {
+    if (allVideos.length === 0) {
       renderEmptyState(grid, {
         icon: '🎬',
         title: 'Your library is empty',
-        message: 'Paste a YouTube link to add your first learning video. Everything saves automatically.',
+        message: 'Paste a YouTube link or search YouTube to add your first learning video.',
         actionText: '＋ Add Your First Video',
         onAction: showAddVideoModal
       });
@@ -52,31 +89,170 @@ function renderVideos(videos) {
       renderEmptyState(grid, {
         icon: '🔍',
         title: 'No videos match',
-        message: `No videos in "${currentFilter}" filter. Try switching tabs.`
+        message: searchQuery ? `No results for "${searchQuery}"` : 'Try a different filter or tag.'
       });
     }
     return;
   }
 
-  grid.innerHTML = filtered.map(videoCardHTML).join('');
+  grid.innerHTML = videos.map(videoCardHTML).join('');
 
   grid.querySelectorAll('[data-video-id]').forEach(card => {
-    card.addEventListener('click', () => {
-      location.href = `video.html?id=${card.dataset.videoId}`;
-    });
-    card.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        card.click();
-      }
+    card.addEventListener('click', () => location.href = `video.html?id=${card.dataset.videoId}`);
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); } });
+  });
+}
+
+// ===== HERO STATS =====
+function renderHeroStats(videos) {
+  const el = document.getElementById('heroStats');
+  if (!el) return;
+  const completed = videos.filter(v => v.completed).length;
+  const inProgress = videos.filter(v => !v.completed && v.progress > 0).length;
+  if (videos.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = [
+    `<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-indigo-500"></span>${videos.length} videos saved</span>`,
+    `<span class="text-slate-300 dark:text-slate-700">·</span>`,
+    `<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>${completed} completed</span>`,
+    inProgress > 0 ? `<span class="text-slate-300 dark:text-slate-700">·</span><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span>${inProgress} in progress</span>` : ''
+  ].join('');
+}
+
+// ===== CONTINUE WATCHING RAIL =====
+function renderContinueRail(videos) {
+  const section = document.getElementById('continueSection');
+  const rail = document.getElementById('continueRail');
+  if (!section || !rail) return;
+
+  const inProgress = videos
+    .filter(v => !v.completed && v.progress > 5)
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+    .slice(0, 6);
+
+  if (inProgress.length === 0) { section.classList.add('hidden'); return; }
+  section.classList.remove('hidden');
+
+  rail.innerHTML = inProgress.map(v => {
+    const thumb = `https://img.youtube.com/vi/${v.youtube_id}/mqdefault.jpg`;
+    const pct = Math.round(v.progress || 0);
+    return `
+      <div class="continue-card" data-video-id="${v.id}">
+        <div class="relative aspect-video bg-slate-900">
+          <img src="${thumb}" alt="" loading="lazy" class="w-full h-full object-cover opacity-90">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+          <div class="absolute bottom-0 inset-x-0 p-3">
+            <div class="h-1 bg-white/20 rounded-full mb-2 overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-indigo-400 to-pink-400 rounded-full" style="width:${pct}%"></div>
+            </div>
+            <p class="text-white text-xs font-medium line-clamp-2 leading-tight">${escapeHtml(v.title)}</p>
+            <p class="text-white/60 text-xs mt-0.5">${pct}% watched</p>
+          </div>
+          <div class="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow">
+            <svg class="w-3 h-3 text-slate-900 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  rail.querySelectorAll('[data-video-id]').forEach(card => {
+    card.addEventListener('click', () => location.href = `video.html?id=${card.dataset.videoId}`);
+  });
+}
+
+// ===== TAG FILTER CHIPS =====
+function renderTagFilters(videos) {
+  const container = document.getElementById('tagFilters');
+  if (!container) return;
+
+  const tagCounts = {};
+  videos.forEach(v => (v.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
+  const tags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+
+  if (tags.length === 0) { container.classList.add('hidden'); return; }
+  container.classList.remove('hidden');
+
+  container.innerHTML = tags.map(([tag, count]) => `
+    <button class="tag-chip ${activeTag === tag ? 'active' : ''}" data-tag="${escapeHtml(tag)}">
+      ${escapeHtml(tag)} <span class="ml-1 opacity-60">${count}</span>
+    </button>
+  `).join('');
+
+  container.querySelectorAll('[data-tag]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      activeTag = activeTag === chip.dataset.tag ? null : chip.dataset.tag;
+      renderTagFilters(allVideos);
+      renderVideos();
     });
   });
 }
 
+// ===== SEARCH =====
+function initSearch() {
+  const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+  const onSearch = debounce(q => { searchQuery = q; renderVideos(); }, 250);
+
+  ['navSearchInput', 'mobileSearchInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', e => onSearch(e.target.value));
+  });
+}
+
+// ===== SORT =====
+function initSort() {
+  const sel = document.getElementById('sortSelect');
+  if (sel) sel.addEventListener('change', e => { currentSort = e.target.value; renderVideos(); });
+}
+
+// ===== SHORTCUT HELP ===== 
+function initShortcutHelp() {
+  document.addEventListener('keydown', e => {
+    if (e.key === '?' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
+      const existing = document.getElementById('shortcutOverlay');
+      if (existing) { existing.remove(); return; }
+      const el = document.createElement('div');
+      el.id = 'shortcutOverlay';
+      el.className = 'shortcut-overlay visible';
+      el.innerHTML = `
+        <div class="glass-card rounded-2xl p-6 max-w-sm w-full mx-4">
+          <h3 class="font-display font-bold text-lg mb-4">Keyboard Shortcuts</h3>
+          <ul class="space-y-3 text-sm">
+            <li class="flex justify-between"><span>Open Add Video</span><kbd class="px-2 py-0.5 rounded border border-slate-300 dark:border-slate-600 font-mono text-xs">A</kbd></li>
+            <li class="flex justify-between"><span>Search library</span><kbd class="px-2 py-0.5 rounded border border-slate-300 dark:border-slate-600 font-mono text-xs">/</kbd></li>
+            <li class="flex justify-between"><span>This help</span><kbd class="px-2 py-0.5 rounded border border-slate-300 dark:border-slate-600 font-mono text-xs">?</kbd></li>
+          </ul>
+          <p class="text-xs text-slate-400 mt-4">Press Esc or ? to close</p>
+        </div>`;
+      el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+      document.body.appendChild(el);
+    }
+    if (e.key === 'Escape') document.getElementById('shortcutOverlay')?.remove();
+    if (e.key === 'a' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) showAddVideoModal();
+    if (e.key === '/' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
+      e.preventDefault();
+      document.getElementById('navSearchInput')?.focus();
+    }
+  });
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr);
+  const m = Math.floor(diff / 60000);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (d > 30) return new Date(dateStr).toLocaleDateString();
+  if (d > 0) return `${d}d ago`;
+  if (h > 0) return `${h}h ago`;
+  if (m > 0) return `${m}m ago`;
+  return 'Just now';
+}
+
 function videoCardHTML(v) {
   const thumb = `https://img.youtube.com/vi/${v.youtube_id}/mqdefault.jpg`;
-  const progress = v.progress || 0;
+  const progress = Math.round(v.progress || 0);
   const tags = (v.tags || []).slice(0, 2);
+  const ago = timeAgo(v.created_at);
 
   return `
     <article data-video-id="${v.id}" role="button" tabindex="0"
@@ -84,31 +260,36 @@ function videoCardHTML(v) {
       aria-label="${escapeHtml(v.title)}">
       <div class="relative aspect-video overflow-hidden bg-slate-900">
         <img src="${thumb}" alt="" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-        <div class="absolute inset-0 bg-gradient-to-t from-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <div class="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-xl">
+        <!-- Hover play overlay -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <div class="w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-300">
             <svg class="w-6 h-6 text-slate-900 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           </div>
         </div>
-        ${v.completed ? `<span class="absolute top-2 right-2 px-2.5 py-1 rounded-full bg-emerald-500 text-white text-xs font-semibold">✓ Completed</span>` : ''}
-        <div class="absolute bottom-0 inset-x-0 h-1 bg-black/40">
+        <!-- Badges -->
+        <div class="absolute top-2 left-2 flex gap-1">
+          ${v.completed ? `<span class="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-xs font-semibold shadow">✓ Done</span>` : ''}
+          ${!v.completed && progress > 0 ? `<span class="px-2 py-0.5 rounded-full bg-black/60 text-white text-xs font-semibold backdrop-blur-sm">${progress}%</span>` : ''}
+        </div>
+        <!-- Progress bar -->
+        <div class="absolute bottom-0 inset-x-0 h-1 bg-black/30">
           <div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-500" style="width:${progress}%"></div>
         </div>
       </div>
       <div class="p-4">
-        <h3 class="font-semibold text-base leading-snug line-clamp-2 mb-2">${escapeHtml(v.title)}</h3>
-        <div class="flex flex-wrap gap-1.5">
-          ${tags.map(t => `<span class="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-medium">${escapeHtml(t)}</span>`).join('')}
+        <h3 class="font-semibold text-sm leading-snug line-clamp-2 mb-2.5">${escapeHtml(v.title)}</h3>
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex flex-wrap gap-1">
+            ${tags.map(t => `<span class="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-medium">${escapeHtml(t)}</span>`).join('')}
+          </div>
+          ${ago ? `<span class="text-xs text-slate-400 shrink-0">${ago}</span>` : ''}
         </div>
       </div>
     </article>
   `;
 }
 
-function filterVideos(videos, filter) {
-  if (filter === 'inprogress') return videos.filter(v => !v.completed && v.progress > 0);
-  if (filter === 'completed') return videos.filter(v => v.completed);
-  return videos;
-}
+
 
 // ===== FILTERS =====
 function initFilters() {
@@ -121,7 +302,7 @@ function initFilters() {
       btn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
       btn.classList.remove('text-slate-500');
       currentFilter = btn.dataset.filter;
-      loadVideos();
+      renderVideos(); // instant, no storage re-read
     });
   });
 }
