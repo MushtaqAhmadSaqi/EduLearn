@@ -315,7 +315,7 @@ function showAddVideoModal() {
             addBtn.textContent = '...';
             try {
               await Videos.add({
-                url: \`https://youtube.com/watch?v=\${addBtn.dataset.addVid}\`,
+                url: `https://youtube.com/watch?v=${addBtn.dataset.addVid}`,
                 title: addBtn.dataset.title,
                 tags: []
               });
