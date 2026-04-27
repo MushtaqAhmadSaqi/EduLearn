@@ -25,11 +25,11 @@
   "defaultPlaylists": [
     {
       "name": "Math Fundamentals",
-      "description": "Essential math concepts every student should know"
+      "description": "Starter videos for building strong math foundations."
     },
     {
-      "name": "Science Basics",
-      "description": "Introduction to core scientific principles"
+      "name": "Science Revision",
+      "description": "Helpful science videos for quick revision sessions."
     }
   ]
 }
