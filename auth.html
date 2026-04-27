@@ -1,88 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sign In — EduLearn</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in — EduLearn</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { display: ['Plus Jakarta Sans', 'sans-serif'] }}}}
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
   </script>
-  <link rel="stylesheet" href="css/custom.css">
+
+  <link rel="stylesheet" href="css/custom.css" />
 </head>
 
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center p-4 antialiased">
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+  <a href="#mainContent" class="skip-link">Skip to content</a>
 
-  <!-- Ambient background -->
-  <div class="fixed inset-0 -z-10 overflow-hidden">
-    <div class="absolute top-10 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
-    <div class="absolute bottom-10 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl"></div>
+  <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div class="absolute left-1/4 top-8 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl"></div>
+    <div class="absolute bottom-8 right-1/4 h-96 w-96 rounded-full bg-pink-500/10 blur-3xl"></div>
   </div>
 
-  <div class="w-full max-w-md">
-    <!-- Logo -->
-    <a href="index.html" class="flex items-center justify-center gap-2 mb-8 font-display font-bold text-xl">
-      <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-white">E</span>
-      <span class="gradient-text">EduLearn</span>
-    </a>
-
-    <div class="glass rounded-3xl p-8 shadow-floating" style="box-shadow: var(--shadow-floating);">
-      <!-- Tabs -->
-      <div class="flex gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 mb-6">
-        <button data-tab="signin" class="tab-btn flex-1 py-2 rounded-lg font-medium bg-white dark:bg-slate-700 shadow-sm text-sm">Sign In</button>
-        <button data-tab="signup" class="tab-btn flex-1 py-2 rounded-lg font-medium text-slate-500 text-sm">Create Account</button>
+  <main id="mainContent" class="flex min-h-screen items-center justify-center px-4 py-10">
+    <section class="w-full max-w-md">
+      <div class="mb-8 flex justify-center">
+        <a href="index.html" class="flex items-center gap-2 font-display text-xl font-extrabold">
+          <span class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-pink-500 text-white shadow-soft">
+            E
+          </span>
+          <span class="gradient-text">EduLearn</span>
+        </a>
       </div>
 
-      <!-- Sign In Form -->
-      <form id="signinForm" class="space-y-4">
-        <h1 class="font-display font-bold text-2xl mb-1">Welcome back</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Continue your learning journey</p>
-
-        <div>
-          <label class="block text-sm font-medium mb-1.5">Email</label>
-          <input name="email" type="email" required autocomplete="email"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
+      <div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-floating dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+        <div class="mb-6 text-center">
+          <h1 class="font-display text-3xl font-black text-slate-950 dark:text-white">Welcome back</h1>
+          <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
+            Sign in to sync your learning progress, or continue locally in offline mode.
+          </p>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1.5">Password</label>
-          <input name="password" type="password" required minlength="6" autocomplete="current-password"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
+        <div
+          class="mb-6 grid grid-cols-2 rounded-2xl bg-slate-100 p-1 dark:bg-slate-800"
+          role="tablist"
+          aria-label="Authentication tabs"
+        >
+          <button
+            data-tab="signin"
+            class="rounded-xl bg-white px-4 py-2 text-sm font-bold text-slate-950 shadow-soft dark:bg-slate-700 dark:text-white"
+            role="tab"
+            aria-selected="true"
+          >
+            Sign in
+          </button>
+
+          <button
+            data-tab="signup"
+            class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 dark:text-slate-400"
+            role="tab"
+            aria-selected="false"
+          >
+            Create account
+          </button>
         </div>
 
-        <button type="submit" class="btn-primary w-full py-3">Sign In</button>
-      </form>
-
-      <!-- Sign Up Form -->
-      <form id="signupForm" class="space-y-4 hidden">
-        <h1 class="font-display font-bold text-2xl mb-1">Create an account</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Start learning distraction-free</p>
-
-        <div>
-          <label class="block text-sm font-medium mb-1.5">Email</label>
-          <input name="email" type="email" required autocomplete="email"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
+        <div id="offlineNotice" class="mb-6 hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+          <strong>Offline mode is active.</strong>
+          Supabase is not configured yet. Your app will still work using browser storage.
+          <button id="continueOfflineBtn" class="mt-3 w-full rounded-xl bg-amber-500 px-4 py-2 font-bold text-white transition hover:bg-amber-600">
+            Continue offline
+          </button>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1.5">Password</label>
-          <input name="password" type="password" required minlength="6" autocomplete="new-password"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
-          <p class="text-xs text-slate-500 mt-1">At least 6 characters</p>
-        </div>
+        <form id="signinForm" class="space-y-4">
+          <label class="block">
+            <span class="form-label">Email</span>
+            <input
+              name="email"
+              class="form-input"
+              type="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+            />
+          </label>
 
-        <button type="submit" class="btn-primary w-full py-3">Create Account</button>
-      </form>
+          <label class="block">
+            <span class="form-label">Password</span>
+            <input
+              name="password"
+              class="form-input"
+              type="password"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            />
+          </label>
 
-      <p class="text-xs text-center text-slate-500 dark:text-slate-400 mt-6">
-        By continuing, you agree to EduLearn's Terms & Privacy Policy.
+          <button type="submit" class="btn-primary w-full justify-center">
+            Sign in
+          </button>
+        </form>
+
+        <form id="signupForm" class="hidden space-y-4">
+          <label class="block">
+            <span class="form-label">Email</span>
+            <input
+              name="email"
+              class="form-input"
+              type="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+            />
+          </label>
+
+          <label class="block">
+            <span class="form-label">Password</span>
+            <input
+              name="password"
+              class="form-input"
+              type="password"
+              placeholder="At least 8 characters"
+              autocomplete="new-password"
+              minlength="8"
+              required
+            />
+          </label>
+
+          <label class="block">
+            <span class="form-label">Confirm password</span>
+            <input
+              name="confirmPassword"
+              class="form-input"
+              type="password"
+              placeholder="Repeat password"
+              autocomplete="new-password"
+              minlength="8"
+              required
+            />
+          </label>
+
+          <button type="submit" class="btn-primary w-full justify-center">
+            Create account
+          </button>
+        </form>
+      </div>
+
+      <p class="mt-6 text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
+        EduLearn stores your learning data locally unless you configure Supabase cloud sync.
       </p>
-    </div>
-
-    <p class="text-center text-sm text-slate-500 mt-6">
-      <a href="index.html" class="hover:text-indigo-500 transition">← Back to home</a>
-    </p>
-  </div>
+    </section>
+  </main>
 
   <script type="module" src="js/modules/auth.js"></script>
 </body>
