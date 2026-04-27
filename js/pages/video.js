@@ -71,6 +71,8 @@ function setupYouTubePlayer() {
 function createPlayer() {
   const startTime = Math.floor(currentVideo.watch_time || 0);
   player = new YT.Player('player', {
+    height: '100%',
+    width: '100%',
     videoId: currentVideo.youtube_id,
     playerVars: {
       rel: 0,
