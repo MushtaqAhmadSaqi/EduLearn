@@ -1,402 +1,557 @@
 // ============================================
-// Dashboard - Animated stats, charts, gamification
+// Dashboard Page
+// Stats, goals, badges, activity, charts
 // ============================================
-import { Videos, Playlists, Activity, Goals } from '../modules/storage.js';
-import { toast, openModal, confirmDialog, initTheme } from '../modules/ui.js';
+
+import { Activity, Goals, Playlists, Videos } from '../modules/storage.js';
+import {
+  confirmDialog,
+  escapeHTML,
+  fieldValue,
+  initTheme,
+  openModal,
+  renderEmptyState,
+  toast
+} from '../modules/ui.js';
 import { requireAuth } from '../config/supabase.js';
-import { animateNumber, celebrateBadge } from '../modules/animations.js';
 import { initUserMenu } from '../modules/user-menu.js';
+import { animateNumber, celebrateBadge } from '../modules/animations.js';
 
-let videos = [], playlists = [], activityLog = [], goals = [];
+let videos = [];
+let playlists = [];
+let activity = [];
+let goals = [];
 
-// ===== INIT =====
-(async function init() {
+document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   initMobileMenu();
-  const user = await requireAuth('auth.html');
-  if (!user) return;
   initUserMenu();
 
+  const user = await requireAuth('auth.html');
+
+  if (!user) return;
+
+  document.getElementById('addGoalBtn')?.addEventListener('click', showAddGoalModal);
+
   await loadData();
-  renderStats();
-  renderGoals();
-  renderBadges();
-  renderActivity();
 
-  // Wait for Chart.js to load, then render charts
-  await waitForChartJs();
-  renderActivityChart();
-  renderCompletionChart();
-
-  document.getElementById('addGoalBtn').addEventListener('click', showGoalModal);
-})();
+  window.addEventListener('videos:changed', loadData);
+  window.addEventListener('playlists:changed', loadData);
+  window.addEventListener('goals:changed', loadData);
+  window.addEventListener('activity:changed', loadData);
+});
 
 function initMobileMenu() {
-  const btn = document.getElementById('mobileMenuBtn');
+  const button = document.getElementById('mobileMenuBtn');
   const menu = document.getElementById('mobileMenu');
-  if (btn && menu) btn.addEventListener('click', () => menu.classList.toggle('hidden'));
+
+  button?.addEventListener('click', () => {
+    menu?.classList.toggle('hidden');
+  });
 }
 
 async function loadData() {
-  [videos, playlists, activityLog, goals] = await Promise.all([
+  [videos, playlists, activity, goals] = await Promise.all([
     Videos.list(),
     Playlists.list(),
-    Activity.list(30),
+    Activity.list(60),
     Goals.list()
   ]);
+
+  renderStats();
+  renderCharts();
+  renderGoals();
+  renderBadges();
+  renderActivity();
 }
 
-// ===== STATS =====
 function renderStats() {
-  const completed = videos.filter(v => v.completed).length;
+  const completed = videos.filter((video) => video.completed).length;
+  const inProgress = videos.filter(
+    (video) => !video.completed && Number(video.progress || 0) > 0
+  ).length;
   const streak = calculateStreak();
 
   animateNumber(document.getElementById('statVideos'), videos.length);
   animateNumber(document.getElementById('statCompleted'), completed);
   animateNumber(document.getElementById('statPlaylists'), playlists.length);
   animateNumber(document.getElementById('statStreak'), streak);
+
+  const summary = document.getElementById('dashboardSummary');
+
+  if (summary) {
+    summary.textContent = videos.length
+      ? `${completed} completed, ${inProgress} in progress, ${videos.length - completed - inProgress} not started.`
+      : 'Add your first video to start tracking progress.';
+  }
 }
 
 function calculateStreak() {
-  if (activityLog.length === 0) return 0;
-  // Group activity by date
-  const dates = new Set();
-  activityLog.forEach(a => {
-    dates.add(new Date(a.created_at).toDateString());
-  });
+  const dates = new Set(
+    activity.map((item) => new Date(item.created_at).toDateString())
+  );
+
+  if (!dates.size) return 0;
 
   let streak = 0;
   const today = new Date();
+
   for (let i = 0; i < 365; i++) {
     const check = new Date(today);
-    check.setDate(check.getDate() - i);
-    if (dates.has(check.toDateString())) {
+
+    check.setDate(today.getDate() - i);
+
+    const dateString = check.toDateString();
+
+    if (dates.has(dateString)) {
       streak++;
     } else if (i > 0) {
       break;
     }
   }
+
   return streak;
 }
 
-// ===== CHARTS =====
-function waitForChartJs() {
-  return new Promise((resolve) => {
-    if (window.Chart) return resolve();
-    const check = setInterval(() => {
-      if (window.Chart) {
-        clearInterval(check);
-        resolve();
-      }
-    }, 50);
-    setTimeout(resolve, 3000); // fail-safe
-  });
+function renderCharts() {
+  renderActivityChart();
+  renderCompletionChart();
 }
 
 function renderActivityChart() {
-  if (!window.Chart) return;
-  const ctx = document.getElementById('activityChart');
-  if (!ctx) return;
+  const canvas = document.getElementById('activityChart');
 
-  const days = [];
-  const counts = { added: [], completed: [] };
+  if (!canvas || !window.Chart) return;
+
+  const labels = [];
+  const added = [];
+  const completed = [];
 
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
-    date.setDate(date.getDate() - i);
-    const dayStr = date.toLocaleDateString('en', { weekday: 'short' });
-    const dateStr = date.toDateString();
-    days.push(dayStr);
 
-    counts.added.push(activityLog.filter(a =>
-      a.action === 'added_video' && new Date(a.created_at).toDateString() === dateStr
-    ).length);
-    counts.completed.push(activityLog.filter(a =>
-      a.action === 'completed_video' && new Date(a.created_at).toDateString() === dateStr
-    ).length);
+    date.setDate(date.getDate() - i);
+
+    const dateString = date.toDateString();
+
+    labels.push(date.toLocaleDateString('en', { weekday: 'short' }));
+
+    added.push(
+      activity.filter(
+        (item) =>
+          item.action === 'added_video' &&
+          new Date(item.created_at).toDateString() === dateString
+      ).length
+    );
+
+    completed.push(
+      activity.filter(
+        (item) =>
+          item.action === 'completed_video' &&
+          new Date(item.created_at).toDateString() === dateString
+      ).length
+    );
   }
 
-  const isDark = document.documentElement.classList.contains('dark');
-  const textColor = isDark ? '#cbd5e1' : '#64748b';
-  const gridColor = isDark ? 'rgba(148,163,184,0.1)' : 'rgba(148,163,184,0.15)';
+  destroyChart(canvas);
 
-  new Chart(ctx, {
-    type: 'bar',
+  canvas._chart = new Chart(canvas, {
+    type: 'line',
     data: {
-      labels: days,
+      labels,
       datasets: [
-        { label: 'Added', data: counts.added, backgroundColor: 'rgba(99, 102, 241, 0.8)', borderRadius: 8, borderSkipped: false },
-        { label: 'Completed', data: counts.completed, backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 8, borderSkipped: false }
+        {
+          label: 'Added',
+          data: added,
+          borderWidth: 3,
+          tension: 0.35
+        },
+        {
+          label: 'Completed',
+          data: completed,
+          borderWidth: 3,
+          tension: 0.35
+        }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: {
-        legend: { labels: { color: textColor, font: { size: 12, weight: '500' }, boxWidth: 12, boxHeight: 12 } },
-        tooltip: {
-          backgroundColor: isDark ? '#1e293b' : '#fff',
-          titleColor: isDark ? '#f1f5f9' : '#0f172a',
-          bodyColor: isDark ? '#cbd5e1' : '#334155',
-          borderColor: isDark ? '#334155' : '#e2e8f0',
-          borderWidth: 1,
-          cornerRadius: 10,
-          padding: 12
+        legend: {
+          display: true
         }
       },
       scales: {
-        x: { ticks: { color: textColor }, grid: { display: false } },
-        y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }, beginAtZero: true }
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0
+          }
+        }
       }
     }
   });
 }
 
 function renderCompletionChart() {
-  if (!window.Chart) return;
-  const ctx = document.getElementById('completionChart');
-  if (!ctx) return;
+  const canvas = document.getElementById('completionChart');
 
-  const completed = videos.filter(v => v.completed).length;
-  const inProgress = videos.filter(v => !v.completed && (v.progress || 0) > 0).length;
-  const notStarted = videos.length - completed - inProgress;
+  if (!canvas || !window.Chart) return;
 
-  const isDark = document.documentElement.classList.contains('dark');
+  const completed = videos.filter((video) => video.completed).length;
+  const inProgress = videos.filter(
+    (video) => !video.completed && Number(video.progress || 0) > 0
+  ).length;
+  const notStarted = Math.max(0, videos.length - completed - inProgress);
 
-  new Chart(ctx, {
+  destroyChart(canvas);
+
+  canvas._chart = new Chart(canvas, {
     type: 'doughnut',
     data: {
-      labels: ['Completed', 'In Progress', 'Not Started'],
-      datasets: [{
-        data: [completed, inProgress, notStarted],
-        backgroundColor: ['#10b981', '#f59e0b', isDark ? '#334155' : '#e2e8f0'],
-        borderWidth: 0,
-        hoverOffset: 8
-      }]
+      labels: ['Completed', 'In progress', 'Not started'],
+      datasets: [
+        {
+          data: [completed, inProgress, notStarted],
+          borderWidth: 0
+        }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '70%',
-      animation: { duration: 900, easing: 'easeOutQuart' },
+      cutout: '68%',
       plugins: {
         legend: {
-          position: 'bottom',
-          labels: { color: isDark ? '#cbd5e1' : '#64748b', font: { size: 12 }, padding: 12, boxWidth: 10, boxHeight: 10 }
+          position: 'bottom'
         }
       }
     }
   });
 }
 
-// ===== GOALS =====
+function destroyChart(canvas) {
+  if (canvas._chart) {
+    canvas._chart.destroy();
+    canvas._chart = null;
+  }
+}
+
 function renderGoals() {
-  const el = document.getElementById('goalsList');
-  if (goals.length === 0) {
-    el.innerHTML = `
-      <div class="py-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
-        <div class="text-3xl mb-2">🎯</div>
-        <p class="text-sm font-medium mb-1">No goals yet</p>
-        <p class="text-xs text-slate-500 max-w-xs mx-auto">Set a goal to watch X videos by a specific date.</p>
-      </div>
-    `;
+  const container = document.getElementById('goalsList');
+
+  if (!container) return;
+
+  if (!goals.length) {
+    renderEmptyState(container, {
+      icon: '🎯',
+      title: 'No goals yet',
+      message: 'Set a small weekly goal to stay consistent.',
+      actionText: 'Add goal',
+      onAction: showAddGoalModal
+    });
     return;
   }
 
-  const completedCount = videos.filter(v => v.completed).length;
-  el.innerHTML = goals.map(g => {
-    const progress = Math.min((completedCount / g.target) * 100, 100);
-    const achieved = progress >= 100;
-    const deadline = g.deadline ? new Date(g.deadline) : null;
-    const daysLeft = deadline ? Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24)) : null;
+  container.innerHTML = goals
+    .map((goal) => {
+      const progress = goalProgress(goal);
+      const percent = Math.min(100, Math.round((progress / goal.target) * 100));
 
-    return `
-      <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 mb-3 last:mb-0 group">
-        <div class="flex items-start justify-between gap-2 mb-2">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="font-medium">${escape(g.title)}</span>
-              ${achieved ? '<span class="text-emerald-500">✓</span>' : ''}
+      return `
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 class="font-bold text-slate-950 dark:text-white">${escapeHTML(goal.title)}</h3>
+              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                ${metricLabel(goal.metric)} · ${progress}/${goal.target}
+                ${goal.deadline ? ` · Due ${escapeHTML(goal.deadline)}` : ''}
+              </p>
             </div>
-            <div class="text-xs text-slate-500 mt-0.5">
-              ${Math.min(completedCount, g.target)} / ${g.target} videos
-              ${daysLeft !== null ? `· ${daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left` : daysLeft === 0 ? 'Due today' : 'Overdue'}` : ''}
-            </div>
+            <button
+              data-delete-goal="${escapeHTML(goal.id)}"
+              class="rounded-xl p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 dark:hover:bg-rose-950/40"
+              aria-label="Delete goal"
+            >
+              ✕
+            </button>
           </div>
-          <button data-delete-goal="${g.id}"
-            class="opacity-0 group-hover:opacity-100 focus:opacity-100 w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 text-slate-400 hover:text-red-500 transition flex items-center justify-center"
-            aria-label="Delete goal">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill" style="width:${progress}%"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
 
-  el.querySelectorAll('[data-delete-goal]').forEach(btn => {
-    btn.addEventListener('click', async () => {
+          <div class="mt-4 h-2 rounded-full bg-slate-200 dark:bg-slate-800">
+            <div class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-pink-500" style="width:${percent}%"></div>
+          </div>
+
+          <p class="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">${percent}% complete</p>
+        </article>
+      `;
+    })
+    .join('');
+
+  container.querySelectorAll('[data-delete-goal]').forEach((button) => {
+    button.addEventListener('click', async () => {
       const confirmed = await confirmDialog({
         title: 'Delete goal?',
-        message: 'This goal will be removed.',
+        message: 'This removes the goal from your dashboard.',
         confirmText: 'Delete',
         danger: true
       });
+
       if (!confirmed) return;
-      await Goals.remove(btn.dataset.deleteGoal);
-      goals = goals.filter(g => g.id !== btn.dataset.deleteGoal);
-      renderGoals();
+
+      await Goals.remove(button.dataset.deleteGoal);
+
+      toast('Goal deleted.', 'success');
+
+      await loadData();
     });
   });
 }
 
-function showGoalModal() {
-  const content = `
-    <form id="goalForm" class="p-6 space-y-5">
-      <h3 class="font-display font-bold text-xl">Set a Learning Goal</h3>
-      <div>
-        <label class="block text-sm font-medium mb-1.5">Goal Title *</label>
-        <input name="title" required autofocus placeholder="e.g., Complete 5 math videos"
-          class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm font-medium mb-1.5">Videos to complete *</label>
-          <input name="target" type="number" min="1" required placeholder="5"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1.5">Deadline</label>
-          <input name="deadline" type="date"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
-        </div>
-      </div>
-      <div class="flex justify-end gap-2 pt-1">
-        <button type="button" data-cancel class="px-5 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition">Cancel</button>
-        <button type="submit" class="btn-primary text-sm">Create Goal</button>
-      </div>
-    </form>
-  `;
-  const { overlay, close } = openModal(content);
-  overlay.querySelector('[data-cancel]').onclick = close;
-  overlay.querySelector('#goalForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    try {
-      const goal = await Goals.add({
-        title: fd.get('title'),
-        target: parseInt(fd.get('target')),
-        deadline: fd.get('deadline') || null
-      });
-      goals.unshift(goal);
-      close();
-      renderGoals();
-      renderBadges(); // triggers goal-setter badge
-      toast('Goal created!', 'success');
-    } catch (err) {
-      toast(err.message || 'Failed to create goal', 'error');
-    }
-  };
+function goalProgress(goal) {
+  if (goal.metric === 'saved_videos') return videos.length;
+  if (goal.metric === 'playlists') return playlists.length;
+  if (goal.metric === 'study_days') return calculateStreak();
+
+  return videos.filter((video) => video.completed).length;
 }
 
-// ===== BADGES =====
+function metricLabel(metric) {
+  const labels = {
+    completed_videos: 'Completed videos',
+    saved_videos: 'Saved videos',
+    playlists: 'Playlists',
+    study_days: 'Study streak'
+  };
+
+  return labels[metric] || 'Progress';
+}
+
 function renderBadges() {
-  const definitions = [
-    { key: 'firstVideo', emoji: '🎬', name: 'First Step', desc: 'Add your first video', check: () => videos.length >= 1 },
-    { key: 'tenVideos', emoji: '📚', name: 'Collector', desc: 'Add 10 videos', check: () => videos.length >= 10 },
-    { key: 'firstComplete', emoji: '✅', name: 'Finisher', desc: 'Complete your first video', check: () => videos.filter(v => v.completed).length >= 1 },
-    { key: 'tenComplete', emoji: '🏆', name: 'Champion', desc: 'Complete 10 videos', check: () => videos.filter(v => v.completed).length >= 10 },
-    { key: 'firstPlaylist', emoji: '📋', name: 'Organizer', desc: 'Create a playlist', check: () => playlists.length >= 1 },
-    { key: 'streak7', emoji: '🔥', name: 'On Fire', desc: '7-day streak', check: () => calculateStreak() >= 7 },
-    { key: 'streak30', emoji: '💎', name: 'Dedicated', desc: '30-day streak', check: () => calculateStreak() >= 30 },
-    { key: 'goalSetter', emoji: '🎯', name: 'Goal Setter', desc: 'Set a learning goal', check: () => goals.length >= 1 }
+  const container = document.getElementById('badgesList');
+
+  if (!container) return;
+
+  const completed = videos.filter((video) => video.completed).length;
+  const streak = calculateStreak();
+  const notesCountText = activity.filter((item) => item.action === 'added_note').length;
+
+  const badges = [
+    {
+      label: 'First Save',
+      description: 'Save your first learning video',
+      unlocked: videos.length >= 1,
+      icon: '🎬'
+    },
+    {
+      label: 'Finisher',
+      description: 'Complete your first video',
+      unlocked: completed >= 1,
+      icon: '✅'
+    },
+    {
+      label: 'Playlist Builder',
+      description: 'Create three playlists',
+      unlocked: playlists.length >= 3,
+      icon: '📋'
+    },
+    {
+      label: 'Note Taker',
+      description: 'Write ten timestamped notes',
+      unlocked: notesCountText >= 10,
+      icon: '📝'
+    },
+    {
+      label: 'Consistency',
+      description: 'Reach a 3-day learning streak',
+      unlocked: streak >= 3,
+      icon: '🔥'
+    },
+    {
+      label: 'Scholar',
+      description: 'Complete ten videos',
+      unlocked: completed >= 10,
+      icon: '🏆'
+    }
   ];
 
-  const el = document.getElementById('badgesGrid');
-  const earnedBefore = JSON.parse(localStorage.getItem('edulearn:badges') || '{}');
-  const earnedNow = {};
+  const newlyUnlocked = badges.find(
+    (badge) =>
+      badge.unlocked &&
+      !localStorage.getItem(`edulearn:badge:${badge.label}`)
+  );
 
-  el.innerHTML = definitions.map(b => {
-    const earned = b.check();
-    earnedNow[b.key] = earned;
-    return `
-      <div class="badge-item group relative flex flex-col items-center gap-1 p-3 rounded-xl ${
-        earned
-          ? 'bg-gradient-to-br from-indigo-500/10 to-pink-500/10 border border-indigo-300/50 dark:border-indigo-700/50'
-          : 'bg-slate-100 dark:bg-slate-800/50 border border-transparent opacity-40'
-      } transition" title="${b.desc}">
-        <div class="text-3xl ${earned ? '' : 'grayscale'}" data-badge="${b.key}">${b.emoji}</div>
-        <div class="text-xs font-semibold text-center leading-tight">${b.name}</div>
-        ${earned ? '' : '<svg class="absolute top-1 right-1 w-3 h-3 text-slate-400" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg>'}
-      </div>
-    `;
-  }).join('');
+  if (newlyUnlocked) {
+    localStorage.setItem(`edulearn:badge:${newlyUnlocked.label}`, 'true');
+    celebrateBadge(newlyUnlocked.label);
+  }
 
-  // Celebrate newly unlocked badges
-  Object.keys(earnedNow).forEach(key => {
-    if (earnedNow[key] && !earnedBefore[key]) {
-      const badge = el.querySelector(`[data-badge="${key}"]`);
-      if (badge) celebrateBadge(badge);
-    }
-  });
-
-  localStorage.setItem('edulearn:badges', JSON.stringify(earnedNow));
+  container.innerHTML = badges
+    .map(
+      (badge) => `
+        <article class="rounded-3xl border p-5 shadow-soft transition ${
+          badge.unlocked
+            ? 'border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950/40'
+            : 'border-slate-200 bg-white opacity-60 dark:border-slate-800 dark:bg-slate-900'
+        }">
+          <div class="flex items-start gap-4">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-subtle dark:bg-slate-800">
+              ${badge.icon}
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-950 dark:text-white">${escapeHTML(badge.label)}</h3>
+              <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400">${escapeHTML(badge.description)}</p>
+              <p class="mt-2 text-xs font-bold ${
+                badge.unlocked
+                  ? 'text-emerald-600 dark:text-emerald-300'
+                  : 'text-slate-400'
+              }">
+                ${badge.unlocked ? 'Unlocked' : 'Locked'}
+              </p>
+            </div>
+          </div>
+        </article>
+      `
+    )
+    .join('');
 }
 
-// ===== ACTIVITY LOG =====
 function renderActivity() {
-  const el = document.getElementById('activityLog');
-  if (activityLog.length === 0) {
-    el.innerHTML = `
-      <div class="py-8 text-center">
-        <div class="text-3xl mb-2">📭</div>
-        <p class="text-sm text-slate-500">No activity yet. Start learning!</p>
-      </div>
-    `;
+  const container = document.getElementById('activityList');
+
+  if (!container) return;
+
+  if (!activity.length) {
+    renderEmptyState(container, {
+      icon: '⚡',
+      title: 'No activity yet',
+      message: 'Your learning actions will appear here.'
+    });
     return;
   }
 
-  const actionConfig = {
-    added_video: { icon: '➕', label: 'Added video', color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/50' },
-    completed_video: { icon: '✅', label: 'Completed', color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50' },
-    created_playlist: { icon: '📋', label: 'Created playlist', color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/50' }
+  container.innerHTML = activity
+    .slice(0, 12)
+    .map(
+      (item) => `
+        <article class="flex gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-subtle dark:border-slate-800 dark:bg-slate-900">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg dark:bg-slate-800">
+            ${activityIcon(item.action)}
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-slate-950 dark:text-white">${escapeHTML(activityLabel(item))}</p>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">${formatRelativeDate(item.created_at)}</p>
+          </div>
+        </article>
+      `
+    )
+    .join('');
+}
+
+function activityIcon(action) {
+  const icons = {
+    added_video: '🎬',
+    completed_video: '✅',
+    created_playlist: '📋',
+    created_goal: '🎯',
+    added_note: '📝'
   };
 
-  el.innerHTML = activityLog.slice(0, 15).map(a => {
-    const cfg = actionConfig[a.action] || { icon: '·', label: a.action, color: 'text-slate-500 bg-slate-100 dark:bg-slate-800' };
-    return `
-      <div class="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900/50 transition">
-        <div class="shrink-0 w-9 h-9 rounded-xl ${cfg.color} flex items-center justify-center text-lg">${cfg.icon}</div>
-        <div class="flex-1 min-w-0">
-          <div class="text-sm">
-            <span class="font-medium">${cfg.label}:</span>
-            <span class="text-slate-600 dark:text-slate-400">${escape(a.detail || '')}</span>
-          </div>
-        </div>
-        <span class="shrink-0 text-xs text-slate-400">${timeAgo(a.created_at)}</span>
+  return icons[action] || '⚡';
+}
+
+function activityLabel(item) {
+  const labels = {
+    added_video: `Added “${item.label || 'a video'}”`,
+    completed_video: `Completed “${item.label || 'a video'}”`,
+    created_playlist: `Created playlist “${item.label || 'Untitled'}”`,
+    created_goal: `Created goal “${item.label || 'Learning goal'}”`,
+    added_note: 'Added a timestamped note'
+  };
+
+  return labels[item.action] || item.label || 'Learning activity';
+}
+
+function formatRelativeDate(dateValue) {
+  const date = new Date(dateValue);
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+
+  return date.toLocaleDateString();
+}
+
+function showAddGoalModal() {
+  openModal({
+    title: 'Add learning goal',
+    description: 'Pick one measurable goal. Small goals are easier to finish.',
+    confirmText: 'Save goal',
+    content: `
+      <label class="block">
+        <span class="form-label">Goal title</span>
+        <input id="goalTitleInput" class="form-input" placeholder="Example: Complete 5 math videos" />
+      </label>
+
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <label class="block">
+          <span class="form-label">Metric</span>
+          <select id="goalMetricInput" class="form-input">
+            <option value="completed_videos">Completed videos</option>
+            <option value="saved_videos">Saved videos</option>
+            <option value="playlists">Playlists</option>
+            <option value="study_days">Study streak</option>
+          </select>
+        </label>
+
+        <label class="block">
+          <span class="form-label">Target</span>
+          <input id="goalTargetInput" class="form-input" type="number" min="1" value="3" />
+        </label>
       </div>
-    `;
-  }).join('');
-}
 
-// ===== UTILS =====
-function timeAgo(iso) {
-  const secs = Math.floor((new Date() - new Date(iso)) / 1000);
-  if (secs < 60) return 'just now';
-  const m = Math.floor(secs / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString();
-}
+      <label class="mt-4 block">
+        <span class="form-label">Deadline</span>
+        <input id="goalDeadlineInput" class="form-input" type="date" />
+      </label>
+    `,
+    onConfirm: async (modal) => {
+      const title = fieldValue(modal, '#goalTitleInput');
+      const metric = fieldValue(modal, '#goalMetricInput');
+      const target = Number(fieldValue(modal, '#goalTargetInput'));
+      const deadline = fieldValue(modal, '#goalDeadlineInput');
 
-function escape(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
+      if (!title) {
+        toast('Goal title is required.', 'error');
+        return false;
+      }
+
+      if (!target || target < 1) {
+        toast('Target must be at least 1.', 'error');
+        return false;
+      }
+
+      await Goals.create({
+        title,
+        metric,
+        target,
+        deadline
+      });
+
+      toast('Goal created.', 'success');
+
+      await loadData();
+
+      return true;
+    }
+  });
 }
