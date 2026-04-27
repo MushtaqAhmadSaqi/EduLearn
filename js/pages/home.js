@@ -1,544 +1,540 @@
 // ============================================
-// Homepage v2 — search, sort, tags, continue rail
+// Home Page — Video Library
+// Search, filters, sorting, tags, add video modal
 // ============================================
-import { Videos, extractYouTubeId } from '../modules/storage.js';
-import { toast, renderEmptyState, openModal, initTheme } from '../modules/ui.js';
 
+import { Videos, extractYouTubeId, formatTime } from '../modules/storage.js';
+import {
+  debounce,
+  escapeHTML,
+  fieldValue,
+  initTheme,
+  openModal,
+  renderEmptyState,
+  renderSkeletonGrid,
+  toast
+} from '../modules/ui.js';
+import { initUserMenu } from '../modules/user-menu.js';
+import { animateCardStagger, animateHeroEntrance } from '../modules/animations.js';
+
+let allVideos = [];
 let currentFilter = 'all';
 let currentSort = 'newest';
-let activeTag = null;
+let activeTag = '';
 let searchQuery = '';
-let allVideos = [];
 
-function onReady(fn) {
-  if (document.readyState !== 'loading') fn();
-  else document.addEventListener('DOMContentLoaded', fn);
-}
+document.addEventListener('DOMContentLoaded', async () => {
+  initTheme();
+  initMobileMenu();
+  initUserMenu();
+  initControls();
+  initKeyboardShortcuts();
 
-onReady(async () => {
-  try {
-    initTheme();
-    initMobileMenu();
-    initFilters();
-    initSort();
-    initSearch();
-    initAddVideoBtn();
-    initShortcutHelp();
-    await loadVideos();
-    console.log('✅ Homepage v2 initialized');
-  } catch (err) {
-    console.error('❌ Homepage init failed:', err);
-    toast('Something went wrong. Check console.', 'error');
-  }
+  animateHeroEntrance();
+
+  await loadVideos();
+
+  window.addEventListener('videos:changed', loadVideos);
 });
 
-// ===== LOAD & RENDER =====
-async function loadVideos() {
-  allVideos = await Videos.list();
-  renderHeroStats(allVideos);
-  renderContinueRail(allVideos);
-  renderTagFilters(allVideos);
-  renderVideos();
+function initMobileMenu() {
+  const button = document.getElementById('mobileMenuBtn');
+  const menu = document.getElementById('mobileMenu');
+
+  button?.addEventListener('click', () => {
+    menu?.classList.toggle('hidden');
+    button.setAttribute(
+      'aria-expanded',
+      String(!menu?.classList.contains('hidden'))
+    );
+  });
 }
 
-function renderVideos() {
-  const grid = document.getElementById('videoGrid');
-  if (!grid) return;
+function initControls() {
+  document.querySelectorAll('[data-add-video]').forEach((button) => {
+    button.addEventListener('click', showAddVideoModal);
+  });
 
-  let videos = [...allVideos];
+  document.querySelectorAll('[data-filter]').forEach((button) => {
+    button.addEventListener('click', () => {
+      currentFilter = button.dataset.filter || 'all';
 
-  // Filter by tab
-  if (currentFilter === 'inprogress') videos = videos.filter(v => !v.completed && v.progress > 0);
-  else if (currentFilter === 'completed') videos = videos.filter(v => v.completed);
-
-  // Filter by active tag
-  if (activeTag) videos = videos.filter(v => (v.tags || []).includes(activeTag));
-
-  // Filter by search query
-  if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase();
-    videos = videos.filter(v =>
-      (v.title || '').toLowerCase().includes(q) ||
-      (v.description || '').toLowerCase().includes(q) ||
-      (v.tags || []).some(t => t.toLowerCase().includes(q))
-    );
-  }
-
-  // Sort
-  if (currentSort === 'oldest') videos.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  else if (currentSort === 'progress') videos.sort((a, b) => (b.progress || 0) - (a.progress || 0));
-  else if (currentSort === 'az') videos.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-  // newest is default (already sorted by unshift)
-
-  // Subtitle
-  const sub = document.getElementById('librarySubtitle');
-  if (sub) sub.textContent = videos.length === allVideos.length
-    ? `${allVideos.length} video${allVideos.length !== 1 ? 's' : ''}`
-    : `${videos.length} of ${allVideos.length} videos`;
-
-  if (videos.length === 0) {
-    if (allVideos.length === 0) {
-      renderEmptyState(grid, {
-        icon: '🎬',
-        title: 'Your library is empty',
-        message: 'Paste a YouTube link or search YouTube to add your first learning video.',
-        actionText: '＋ Add Your First Video',
-        onAction: showAddVideoModal
+      document.querySelectorAll('[data-filter]').forEach((item) => {
+        item.classList.remove('active-filter');
+        item.setAttribute('aria-pressed', 'false');
       });
-    } else {
-      renderEmptyState(grid, {
-        icon: '🔍',
-        title: 'No videos match',
-        message: searchQuery ? `No results for "${searchQuery}"` : 'Try a different filter or tag.'
-      });
+
+      button.classList.add('active-filter');
+      button.setAttribute('aria-pressed', 'true');
+
+      renderVideos();
+    });
+  });
+
+  const sortSelect = document.getElementById('sortSelect');
+
+  sortSelect?.addEventListener('change', () => {
+    currentSort = sortSelect.value;
+    renderVideos();
+  });
+
+  const searchInputs = [
+    document.getElementById('navSearchInput'),
+    document.getElementById('librarySearchInput')
+  ].filter(Boolean);
+
+  const updateSearch = debounce((value) => {
+    searchQuery = value.trim().toLowerCase();
+
+    searchInputs.forEach((input) => {
+      if (input.value !== value) input.value = value;
+    });
+
+    renderVideos();
+  }, 180);
+
+  searchInputs.forEach((input) => {
+    input.addEventListener('input', () => updateSearch(input.value));
+  });
+}
+
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', (event) => {
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    const isTyping = ['input', 'textarea', 'select'].includes(tag);
+
+    if (isTyping) return;
+
+    if (event.key === '/') {
+      event.preventDefault();
+      document.getElementById('librarySearchInput')?.focus();
     }
+
+    if (event.key.toLowerCase() === 'n') {
+      event.preventDefault();
+      showAddVideoModal();
+    }
+  });
+}
+
+async function loadVideos() {
+  const grid = document.getElementById('videoGrid');
+
+  renderSkeletonGrid(grid, 6);
+
+  try {
+    allVideos = await Videos.list();
+
+    renderHeroStats();
+    renderContinueRail();
+    renderTagFilters();
+    renderVideos();
+  } catch (error) {
+    console.error(error);
+    toast('Could not load your library.', 'error');
+
+    renderEmptyState(grid, {
+      icon: '⚠️',
+      title: 'Could not load videos',
+      message: 'Refresh the page or check your browser storage permissions.'
+    });
+  }
+}
+
+function renderHeroStats() {
+  const container = document.getElementById('heroStats');
+
+  if (!container) return;
+
+  const total = allVideos.length;
+  const completed = allVideos.filter((video) => video.completed).length;
+  const inProgress = allVideos.filter(
+    (video) => !video.completed && Number(video.progress || 0) > 0
+  ).length;
+
+  if (!total) {
+    container.innerHTML = `
+      <span class="inline-flex items-center gap-2">
+        <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+        Start by saving your first learning video
+      </span>
+    `;
     return;
   }
 
-  grid.innerHTML = videos.map(videoCardHTML).join('');
-
-  grid.querySelectorAll('[data-video-id]').forEach(card => {
-    card.addEventListener('click', () => location.href = `video.html?id=${card.dataset.videoId}`);
-    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); } });
-  });
+  container.innerHTML = `
+    <span class="inline-flex items-center gap-2">
+      <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+      ${total} saved
+    </span>
+    <span class="text-slate-300 dark:text-slate-700">•</span>
+    <span class="inline-flex items-center gap-2">
+      <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+      ${completed} completed
+    </span>
+    <span class="text-slate-300 dark:text-slate-700">•</span>
+    <span class="inline-flex items-center gap-2">
+      <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+      ${inProgress} in progress
+    </span>
+  `;
 }
 
-// ===== HERO STATS =====
-function renderHeroStats(videos) {
-  const el = document.getElementById('heroStats');
-  if (!el) return;
-  const completed = videos.filter(v => v.completed).length;
-  const inProgress = videos.filter(v => !v.completed && v.progress > 0).length;
-  if (videos.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = [
-    `<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-indigo-500"></span>${videos.length} videos saved</span>`,
-    `<span class="text-slate-300 dark:text-slate-700">·</span>`,
-    `<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>${completed} completed</span>`,
-    inProgress > 0 ? `<span class="text-slate-300 dark:text-slate-700">·</span><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span>${inProgress} in progress</span>` : ''
-  ].join('');
-}
-
-// ===== CONTINUE WATCHING RAIL =====
-function renderContinueRail(videos) {
+function renderContinueRail() {
   const section = document.getElementById('continueSection');
   const rail = document.getElementById('continueRail');
+
   if (!section || !rail) return;
 
-  const inProgress = videos
-    .filter(v => !v.completed && v.progress > 5)
-    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+  const videos = allVideos
+    .filter((video) => !video.completed && Number(video.progress || 0) > 0)
+    .sort((a, b) => Number(b.watch_time || 0) - Number(a.watch_time || 0))
     .slice(0, 6);
 
-  if (inProgress.length === 0) { section.classList.add('hidden'); return; }
+  if (!videos.length) {
+    section.classList.add('hidden');
+    return;
+  }
+
   section.classList.remove('hidden');
 
-  rail.innerHTML = inProgress.map(v => {
-    const thumb = `https://img.youtube.com/vi/${v.youtube_id}/mqdefault.jpg`;
-    const pct = Math.round(v.progress || 0);
-    return `
-      <div class="continue-card" data-video-id="${v.id}">
-        <div class="relative aspect-video bg-slate-900">
-          <img src="${thumb}" alt="" loading="lazy" class="w-full h-full object-cover opacity-90">
-          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-          <div class="absolute bottom-0 inset-x-0 p-3">
-            <div class="h-1 bg-white/20 rounded-full mb-2 overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-indigo-400 to-pink-400 rounded-full" style="width:${pct}%"></div>
+  rail.innerHTML = videos
+    .map(
+      (video) => `
+        <a href="video.html?id=${encodeURIComponent(video.id)}"
+          class="group min-w-[260px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-1 hover:shadow-premium dark:border-slate-800 dark:bg-slate-900">
+          <div class="relative aspect-video overflow-hidden bg-slate-200 dark:bg-slate-800">
+            <img
+              src="https://img.youtube.com/vi/${escapeHTML(video.youtube_id)}/mqdefault.jpg"
+              alt=""
+              loading="lazy"
+              class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            />
+            <div class="absolute inset-x-0 bottom-0 h-1 bg-slate-950/20">
+              <div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500" style="width:${Number(video.progress || 0)}%"></div>
             </div>
-            <p class="text-white text-xs font-medium line-clamp-2 leading-tight">${escapeHtml(v.title)}</p>
-            <p class="text-white/60 text-xs mt-0.5">${pct}% watched</p>
           </div>
-          <div class="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow">
-            <svg class="w-3 h-3 text-slate-900 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <div class="p-4">
+            <h3 class="line-clamp-2 text-sm font-bold text-slate-950 dark:text-white">${escapeHTML(video.title)}</h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Resume at ${formatTime(video.watch_time || 0)}
+            </p>
           </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  rail.querySelectorAll('[data-video-id]').forEach(card => {
-    card.addEventListener('click', () => location.href = `video.html?id=${card.dataset.videoId}`);
-  });
+        </a>
+      `
+    )
+    .join('');
 }
 
-// ===== TAG FILTER CHIPS =====
-function renderTagFilters(videos) {
+function renderTagFilters() {
   const container = document.getElementById('tagFilters');
+
   if (!container) return;
 
-  const tagCounts = {};
-  videos.forEach(v => (v.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
-  const tags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  const tags = [
+    ...new Set(allVideos.flatMap((video) => video.tags || []).filter(Boolean))
+  ].sort((a, b) => a.localeCompare(b));
 
-  if (tags.length === 0) { container.classList.add('hidden'); return; }
-  container.classList.remove('hidden');
+  if (!tags.length) {
+    container.innerHTML = '';
+    return;
+  }
 
-  container.innerHTML = tags.map(([tag, count]) => `
-    <button class="tag-chip ${activeTag === tag ? 'active' : ''}" data-tag="${escapeHtml(tag)}">
-      ${escapeHtml(tag)} <span class="ml-1 opacity-60">${count}</span>
-    </button>
-  `).join('');
+  container.innerHTML = `
+    <button data-tag="" class="tag-filter ${!activeTag ? 'active-tag' : ''}">All topics</button>
+    ${tags
+      .map(
+        (tag) => `
+          <button data-tag="${escapeHTML(tag)}" class="tag-filter ${activeTag === tag ? 'active-tag' : ''}">
+            ${escapeHTML(tag)}
+          </button>
+        `
+      )
+      .join('')}
+  `;
 
-  container.querySelectorAll('[data-tag]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      activeTag = activeTag === chip.dataset.tag ? null : chip.dataset.tag;
-      renderTagFilters(allVideos);
+  container.querySelectorAll('[data-tag]').forEach((button) => {
+    button.addEventListener('click', () => {
+      activeTag = button.dataset.tag || '';
+      renderTagFilters();
       renderVideos();
     });
   });
 }
 
-// ===== SEARCH =====
-function initSearch() {
-  const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
-  const onSearch = debounce(q => { searchQuery = q; renderVideos(); }, 250);
+function getFilteredVideos() {
+  let videos = [...allVideos];
 
-  ['navSearchInput', 'mobileSearchInput'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', e => onSearch(e.target.value));
+  if (currentFilter === 'inprogress') {
+    videos = videos.filter(
+      (video) => !video.completed && Number(video.progress || 0) > 0
+    );
+  }
+
+  if (currentFilter === 'completed') {
+    videos = videos.filter((video) => video.completed);
+  }
+
+  if (currentFilter === 'unstarted') {
+    videos = videos.filter(
+      (video) => !video.completed && Number(video.progress || 0) === 0
+    );
+  }
+
+  if (activeTag) {
+    videos = videos.filter((video) => (video.tags || []).includes(activeTag));
+  }
+
+  if (searchQuery) {
+    videos = videos.filter((video) => {
+      const haystack = [
+        video.title,
+        video.description,
+        ...(video.tags || [])
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(searchQuery);
+    });
+  }
+
+  if (currentSort === 'oldest') {
+    videos.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  } else if (currentSort === 'progress') {
+    videos.sort((a, b) => Number(b.progress || 0) - Number(a.progress || 0));
+  } else if (currentSort === 'az') {
+    videos.sort((a, b) => a.title.localeCompare(b.title));
+  } else {
+    videos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  return videos;
+}
+
+function renderVideos() {
+  const grid = document.getElementById('videoGrid');
+  const subtitle = document.getElementById('librarySubtitle');
+
+  if (!grid) return;
+
+  const videos = getFilteredVideos();
+
+  if (subtitle) {
+    subtitle.textContent =
+      videos.length === allVideos.length
+        ? `${allVideos.length} video${allVideos.length === 1 ? '' : 's'} in your library`
+        : `${videos.length} of ${allVideos.length} videos shown`;
+  }
+
+  if (!allVideos.length) {
+    renderEmptyState(grid, {
+      icon: '🎬',
+      title: 'Build your learning library',
+      message:
+        'Paste any YouTube learning video, organize it by topic, and EduLearn will track your progress.',
+      actionText: 'Add your first video',
+      onAction: showAddVideoModal
+    });
+
+    return;
+  }
+
+  if (!videos.length) {
+    renderEmptyState(grid, {
+      icon: '🔍',
+      title: 'No videos match',
+      message: searchQuery
+        ? `No saved videos match “${searchQuery}”.`
+        : 'Try changing the filter, tag, or sort option.'
+    });
+
+    return;
+  }
+
+  grid.innerHTML = videos.map(videoCardHTML).join('');
+
+  grid.querySelectorAll('[data-video-card]').forEach((card) => {
+    card.addEventListener('click', (event) => {
+      if (event.target.closest('button, a')) return;
+
+      window.location.href = `video.html?id=${encodeURIComponent(card.dataset.videoId)}`;
+    });
+
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        card.click();
+      }
+    });
   });
-}
 
-// ===== SORT =====
-function initSort() {
-  const sel = document.getElementById('sortSelect');
-  if (sel) sel.addEventListener('change', e => { currentSort = e.target.value; renderVideos(); });
-}
+  grid.querySelectorAll('[data-delete-video]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.stopPropagation();
 
-// ===== SHORTCUT HELP ===== 
-function initShortcutHelp() {
-  document.addEventListener('keydown', e => {
-    if (e.key === '?' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
-      const existing = document.getElementById('shortcutOverlay');
-      if (existing) { existing.remove(); return; }
-      const el = document.createElement('div');
-      el.id = 'shortcutOverlay';
-      el.className = 'shortcut-overlay visible';
-      el.innerHTML = `
-        <div class="glass-card rounded-2xl p-6 max-w-sm w-full mx-4">
-          <h3 class="font-display font-bold text-lg mb-4">Keyboard Shortcuts</h3>
-          <ul class="space-y-3 text-sm">
-            <li class="flex justify-between"><span>Open Add Video</span><kbd class="px-2 py-0.5 rounded border border-slate-300 dark:border-slate-600 font-mono text-xs">A</kbd></li>
-            <li class="flex justify-between"><span>Search library</span><kbd class="px-2 py-0.5 rounded border border-slate-300 dark:border-slate-600 font-mono text-xs">/</kbd></li>
-            <li class="flex justify-between"><span>This help</span><kbd class="px-2 py-0.5 rounded border border-slate-300 dark:border-slate-600 font-mono text-xs">?</kbd></li>
-          </ul>
-          <p class="text-xs text-slate-400 mt-4">Press Esc or ? to close</p>
-        </div>`;
-      el.addEventListener('click', e => { if (e.target === el) el.remove(); });
-      document.body.appendChild(el);
-    }
-    if (e.key === 'Escape') document.getElementById('shortcutOverlay')?.remove();
-    if (e.key === 'a' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) showAddVideoModal();
-    if (e.key === '/' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
-      e.preventDefault();
-      document.getElementById('navSearchInput')?.focus();
-    }
+      const videoId = button.dataset.deleteVideo;
+      const video = allVideos.find((item) => item.id === videoId);
+
+      if (!video) return;
+
+      const confirmed = confirm(`Delete "${video.title}" from your library?`);
+
+      if (!confirmed) return;
+
+      await Videos.remove(videoId);
+      toast('Video deleted.', 'success');
+      await loadVideos();
+    });
   });
+
+  animateCardStagger('[data-video-card]');
 }
 
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr);
-  const m = Math.floor(diff / 60000);
-  const h = Math.floor(m / 60);
-  const d = Math.floor(h / 24);
-  if (d > 30) return new Date(dateStr).toLocaleDateString();
-  if (d > 0) return `${d}d ago`;
-  if (h > 0) return `${h}h ago`;
-  if (m > 0) return `${m}m ago`;
-  return 'Just now';
-}
-
-function videoCardHTML(v) {
-  const thumb = `https://img.youtube.com/vi/${v.youtube_id}/mqdefault.jpg`;
-  const progress = Math.round(v.progress || 0);
-  const tags = (v.tags || []).slice(0, 2);
-  const ago = timeAgo(v.created_at);
+function videoCardHTML(video) {
+  const progress = Math.round(Number(video.progress || 0));
+  const tags = (video.tags || [])
+    .slice(0, 3)
+    .map(
+      (tag) => `
+        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          ${escapeHTML(tag)}
+        </span>
+      `
+    )
+    .join('');
 
   return `
-    <article data-video-id="${v.id}" role="button" tabindex="0"
-      class="card-lift group cursor-pointer rounded-2xl overflow-hidden bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60"
-      aria-label="${escapeHtml(v.title)}">
-      <div class="relative aspect-video overflow-hidden bg-slate-900">
-        <img src="${thumb}" alt="" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-        <!-- Hover play overlay -->
-        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <div class="w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-300">
-            <svg class="w-6 h-6 text-slate-900 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          </div>
+    <article
+      data-card
+      data-video-card
+      data-video-id="${escapeHTML(video.id)}"
+      tabindex="0"
+      class="group cursor-pointer overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft outline-none transition hover:-translate-y-1 hover:shadow-premium focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+    >
+      <div class="relative aspect-video overflow-hidden bg-slate-200 dark:bg-slate-800">
+        <img
+          src="https://img.youtube.com/vi/${escapeHTML(video.youtube_id)}/hqdefault.jpg"
+          alt=""
+          loading="lazy"
+          class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+        />
+
+        <div class="absolute inset-0 flex items-center justify-center bg-slate-950/0 transition group-hover:bg-slate-950/25">
+          <span class="grid h-14 w-14 scale-95 place-items-center rounded-full bg-white/95 text-indigo-600 opacity-0 shadow-floating transition group-hover:scale-100 group-hover:opacity-100">
+            <svg class="ml-1 h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </span>
         </div>
-        <!-- Badges -->
-        <div class="absolute top-2 left-2 flex gap-1">
-          ${v.completed ? `<span class="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-xs font-semibold shadow">✓ Done</span>` : ''}
-          ${!v.completed && progress > 0 ? `<span class="px-2 py-0.5 rounded-full bg-black/60 text-white text-xs font-semibold backdrop-blur-sm">${progress}%</span>` : ''}
-        </div>
-        <!-- Progress bar -->
-        <div class="absolute bottom-0 inset-x-0 h-1 bg-black/30">
-          <div class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-500" style="width:${progress}%"></div>
+
+        ${
+          video.completed
+            ? `<span class="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-soft">Completed</span>`
+            : ''
+        }
+
+        <div class="absolute inset-x-0 bottom-0 h-1.5 bg-slate-950/20">
+          <div class="h-full rounded-r-full bg-gradient-to-r from-indigo-500 to-pink-500" style="width:${progress}%"></div>
         </div>
       </div>
-      <div class="p-4">
-        <h3 class="font-semibold text-sm leading-snug line-clamp-2 mb-2.5">${escapeHtml(v.title)}</h3>
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex flex-wrap gap-1">
-            ${tags.map(t => `<span class="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-medium">${escapeHtml(t)}</span>`).join('')}
-          </div>
-          ${ago ? `<span class="text-xs text-slate-400 shrink-0">${ago}</span>` : ''}
+
+      <div class="p-5">
+        <div class="mb-3 flex items-start justify-between gap-3">
+          <h3 class="line-clamp-2 font-display text-lg font-bold leading-snug text-slate-950 dark:text-white">
+            ${escapeHTML(video.title)}
+          </h3>
+
+          <button
+            data-delete-video="${escapeHTML(video.id)}"
+            class="rounded-xl p-2 text-slate-400 opacity-100 transition hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 sm:opacity-0 sm:group-hover:opacity-100 dark:hover:bg-rose-950/40"
+            aria-label="Delete video"
+          >
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 7-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3m-9 0h12"/>
+            </svg>
+          </button>
+        </div>
+
+        ${
+          video.description
+            ? `<p class="line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-400">${escapeHTML(video.description)}</p>`
+            : `<p class="text-sm leading-6 text-slate-500 dark:text-slate-500">No description added yet.</p>`
+        }
+
+        <div class="mt-4 flex flex-wrap gap-2">${tags}</div>
+
+        <div class="mt-5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+          <span>${progress}% complete</span>
+          <span>${video.watch_time ? `Last watched ${formatTime(video.watch_time)}` : 'Not started'}</span>
         </div>
       </div>
     </article>
   `;
 }
 
-
-
-// ===== FILTERS =====
-function initFilters() {
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => {
-        b.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-        b.classList.add('text-slate-500');
-      });
-      btn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-      btn.classList.remove('text-slate-500');
-      currentFilter = btn.dataset.filter;
-      renderVideos(); // instant, no storage re-read
-    });
-  });
-}
-
-function initAddVideoBtn() {
-  // Event delegation handles all add video buttons (both fixed and empty states)
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action="add-video"]');
-    if (btn) {
-      e.preventDefault();
-      showAddVideoModal();
-    }
-  });
-}
-
 function showAddVideoModal() {
-  const { overlay, close } = openModal(`
-    <div class="p-6 space-y-5">
-      <h3 class="font-bold text-2xl">Add YouTube Video</h3>
-      
-      <!-- Tabs -->
-      <div class="flex gap-2 border-b border-slate-200 dark:border-slate-700">
-        <button id="tabUrl" class="px-4 py-2 font-medium text-sm border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400">Add via URL</button>
-        <button id="tabSearch" class="px-4 py-2 font-medium text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Search YouTube</button>
-      </div>
+  openModal({
+    title: 'Add a learning video',
+    description:
+      'Paste a YouTube link, give it a clear title, and optionally add topics separated by commas.',
+    confirmText: 'Save video',
+    content: `
+      <form class="space-y-4" id="addVideoForm">
+        <label class="block">
+          <span class="form-label">YouTube URL</span>
+          <input id="videoUrlInput" class="form-input" type="url" placeholder="https://www.youtube.com/watch?v=..." required />
+          <span class="form-hint">Supports youtube.com, youtu.be, shorts, and embed links.</span>
+        </label>
 
-      <!-- URL Form -->
-      <form id="addVideoForm" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium mb-1.5">YouTube URL *</label>
-          <input name="url" type="url" required autofocus placeholder="https://youtube.com/watch?v=..."
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1.5">Title *</label>
-          <input name="title" type="text" required
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1.5">Tags (optional, comma-separated)</label>
-          <input name="tags" type="text" placeholder="math, algebra"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
-        </div>
-        <div class="flex gap-3 justify-end pt-2">
-          <button type="button" data-cancel class="px-5 py-2 rounded-xl border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition">Cancel</button>
-          <button type="submit" class="btn-primary">Add Video</button>
-        </div>
+        <label class="block">
+          <span class="form-label">Title</span>
+          <input id="videoTitleInput" class="form-input" type="text" placeholder="Example: JavaScript async/await explained" required />
+        </label>
+
+        <label class="block">
+          <span class="form-label">Description</span>
+          <textarea id="videoDescriptionInput" class="form-input min-h-[92px]" placeholder="Why are you saving this video?"></textarea>
+        </label>
+
+        <label class="block">
+          <span class="form-label">Topics</span>
+          <input id="videoTagsInput" class="form-input" type="text" placeholder="javascript, web development, async" />
+        </label>
       </form>
+    `,
+    onConfirm: async (modal) => {
+      const url = fieldValue(modal, '#videoUrlInput');
+      const title = fieldValue(modal, '#videoTitleInput');
+      const description = fieldValue(modal, '#videoDescriptionInput');
+      const tags = fieldValue(modal, '#videoTagsInput')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean);
 
-      <!-- Search Section -->
-      <div id="searchSection" class="hidden space-y-4">
-        <form id="searchForm" class="flex gap-2">
-          <input name="query" type="text" required placeholder="Search YouTube..."
-            class="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition">
-          <button type="submit" class="btn-primary px-5">Search</button>
-        </form>
-        <div id="searchResults" class="space-y-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
-          <div class="text-center py-6 text-slate-500 text-sm">Enter a search term above</div>
-        </div>
-        <div class="flex gap-3 justify-end pt-2 border-t border-slate-200 dark:border-slate-700">
-          <button type="button" data-cancel class="px-5 py-2 rounded-xl border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition">Cancel</button>
-        </div>
-      </div>
-    </div>
-  `);
+      if (!extractYouTubeId(url)) {
+        toast('Please enter a valid YouTube link.', 'error');
+        modal.querySelector('#videoUrlInput')?.focus();
+        return false;
+      }
 
-  const tabUrl = overlay.querySelector('#tabUrl');
-  const tabSearch = overlay.querySelector('#tabSearch');
-  const formUrl = overlay.querySelector('#addVideoForm');
-  const sectionSearch = overlay.querySelector('#searchSection');
+      if (!title) {
+        toast('Please add a title.', 'error');
+        modal.querySelector('#videoTitleInput')?.focus();
+        return false;
+      }
 
-  // Tab switching
-  const switchTab = (toSearch) => {
-    if (toSearch) {
-      tabSearch.classList.replace('border-transparent', 'border-indigo-500');
-      tabSearch.classList.replace('text-slate-500', 'text-indigo-600');
-      tabSearch.classList.add('dark:text-indigo-400');
-      tabUrl.classList.replace('border-indigo-500', 'border-transparent');
-      tabUrl.classList.replace('text-indigo-600', 'text-slate-500');
-      tabUrl.classList.remove('dark:text-indigo-400');
-      formUrl.classList.add('hidden');
-      sectionSearch.classList.remove('hidden');
-      overlay.querySelector('input[name="query"]').focus();
-    } else {
-      tabUrl.classList.replace('border-transparent', 'border-indigo-500');
-      tabUrl.classList.replace('text-slate-500', 'text-indigo-600');
-      tabUrl.classList.add('dark:text-indigo-400');
-      tabSearch.classList.replace('border-indigo-500', 'border-transparent');
-      tabSearch.classList.replace('text-indigo-600', 'text-slate-500');
-      tabSearch.classList.remove('dark:text-indigo-400');
-      sectionSearch.classList.add('hidden');
-      formUrl.classList.remove('hidden');
-      overlay.querySelector('input[name="url"]').focus();
-    }
-  };
-
-  tabUrl.onclick = () => switchTab(false);
-  tabSearch.onclick = () => switchTab(true);
-
-  // Close handlers
-  overlay.querySelectorAll('[data-cancel]').forEach(btn => btn.onclick = close);
-
-  // URL Form Logic
-  formUrl.onsubmit = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(formUrl);
-    const url = fd.get('url');
-    if (!extractYouTubeId(url)) {
-      toast('Invalid YouTube URL', 'error');
-      return;
-    }
-    const btn = formUrl.querySelector('button[type=submit]');
-    btn.disabled = true;
-    btn.textContent = 'Adding...';
-    try {
       await Videos.add({
         url,
-        title: fd.get('title'),
-        tags: (fd.get('tags') || '').split(',').map(t => t.trim()).filter(Boolean)
+        title,
+        description,
+        tags
       });
-      close();
-      toast('Video added!', 'success');
+
+      toast('Video added to your library.', 'success');
       await loadVideos();
-    } catch (err) {
-      toast(err.message || 'Failed to add', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Add Video';
+
+      return true;
     }
-  };
-
-  // Search Form Logic (using Invidious API)
-  const searchForm = overlay.querySelector('#searchForm');
-  const searchResults = overlay.querySelector('#searchResults');
-
-  searchForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const query = new FormData(searchForm).get('query');
-    const btn = searchForm.querySelector('button[type=submit]');
-    
-    btn.disabled = true;
-    btn.textContent = '...';
-    searchResults.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">Searching...</div>';
-
-    try {
-      // Fallback instances for reliability
-      const instances = [
-        'vid.puffyan.us',
-        'invidious.slipfox.xyz',
-        'inv.tux.pizza'
-      ];
-      
-      let data = null;
-      for (const instance of instances) {
-        try {
-          const res = await fetch(`https://${instance}/api/v1/search?q=${encodeURIComponent(query)}`);
-          if (res.ok) {
-            data = await res.json();
-            break; // Success, break out of loop
-          }
-        } catch (e) {
-          console.warn(`Instance ${instance} failed, trying next...`);
-        }
-      }
-
-      if (!data) throw new Error('All search instances failed');
-      
-      const videos = data.filter(item => item.type === 'video').slice(0, 8); // Top 8 results
-      
-      if (videos.length === 0) {
-        searchResults.innerHTML = '<div class="text-center py-6 text-slate-500 text-sm">No videos found.</div>';
-      } else {
-        searchResults.innerHTML = videos.map(v => `
-          <div class="flex gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition items-center border border-transparent dark:border-slate-700/30">
-            <img src="${v.videoThumbnails?.find(t => t.quality === 'medium')?.url || v.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`}" class="w-28 sm:w-32 aspect-video object-cover rounded-lg bg-slate-900 shadow-sm" alt="Thumbnail">
-            <div class="flex-1 min-w-0">
-              <div class="font-medium text-sm line-clamp-2 leading-tight" title="${escapeHtml(v.title)}">${escapeHtml(v.title)}</div>
-              <div class="text-xs text-slate-500 mt-1.5 truncate flex items-center gap-1">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-7.5c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
-                ${escapeHtml(v.author)}
-              </div>
-            </div>
-            <button type="button" data-add-vid="${v.videoId}" data-title="${escapeHtml(v.title)}" class="shrink-0 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 dark:text-indigo-400 rounded-lg text-sm font-medium transition active:scale-95">Add</button>
-          </div>
-        `).join('');
-
-        // Bind add buttons
-        searchResults.querySelectorAll('[data-add-vid]').forEach(addBtn => {
-          addBtn.onclick = async () => {
-            const originalText = addBtn.textContent;
-            addBtn.disabled = true;
-            addBtn.textContent = '...';
-            try {
-              await Videos.add({
-                url: `https://youtube.com/watch?v=${addBtn.dataset.addVid}`,
-                title: addBtn.dataset.title,
-                tags: []
-              });
-              addBtn.textContent = '✓ Added';
-              addBtn.classList.replace('text-indigo-600', 'text-emerald-600');
-              addBtn.classList.replace('dark:text-indigo-400', 'dark:text-emerald-400');
-              addBtn.classList.replace('bg-indigo-50', 'bg-emerald-50');
-              addBtn.classList.replace('dark:bg-indigo-500/10', 'dark:bg-emerald-500/10');
-              
-              // Only load videos in background, let user keep adding if they want
-              loadVideos();
-              toast('Video added to library!', 'success');
-            } catch (err) {
-              toast(err.message || 'Failed to add', 'error');
-              addBtn.disabled = false;
-              addBtn.textContent = originalText;
-            }
-          };
-        });
-      }
-    } catch (err) {
-      console.error(err);
-      searchResults.innerHTML = '<div class="text-center py-6 px-4"><div class="text-red-500 mb-2">Search service temporarily unavailable.</div><div class="text-slate-500 text-sm">Please use the "Add via URL" tab instead.</div></div>';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Search';
-    }
-  };
-}
-
-// ===== MOBILE MENU =====
-function initMobileMenu() {
-  const btn = document.getElementById('mobileMenuBtn');
-  const menu = document.getElementById('mobileMenu');
-  if (btn && menu) btn.addEventListener('click', () => menu.classList.toggle('hidden'));
-}
-
-// ===== REACTIVE =====
-window.addEventListener('videos:changed', loadVideos);
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
+  });
 }
